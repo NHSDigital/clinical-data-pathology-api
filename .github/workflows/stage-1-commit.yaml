@@ -39,7 +39,7 @@ jobs:
     timeout-minutes: 2
     steps:
       - name: "Checkout code"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0 # Full history is needed to scan all commits
       - name: "Scan secrets"
@@ -50,18 +50,29 @@ jobs:
     timeout-minutes: 2
     steps:
       - name: "Checkout code"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0 # Full history is needed to compare branches
       - name: "Check file format"
         uses: ./.github/actions/check-file-format
+  check-python-format:
+    name: "Check Python format"
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: "Checkout code"
+        uses: actions/checkout@v6
+      - name: "Check Python format"
+        uses: ./.github/actions/check-python-format
+        with:
+          python_version: "${{ inputs.python_version }}"
   check-markdown-format:
     name: "Check Markdown format"
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
       - name: "Checkout code"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0 # Full history is needed to compare branches
       - name: "Check Markdown format"
@@ -72,7 +83,7 @@ jobs:
     timeout-minutes: 2
     steps:
       - name: "Checkout code"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0 # Full history is needed to compare branches
       - name: "Check English usage"
@@ -83,7 +94,7 @@ jobs:
     timeout-minutes: 2
     steps:
       - name: "Checkout code"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: "Lint Terraform"
         uses: ./.github/actions/lint-terraform
   count-lines-of-code:
@@ -95,7 +106,7 @@ jobs:
     timeout-minutes: 2
     steps:
       - name: "Checkout code"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: "Count lines of code"
         uses: ./.github/actions/create-lines-of-code-report
         with:
@@ -114,7 +125,7 @@ jobs:
     timeout-minutes: 2
     steps:
       - name: "Checkout code"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: "Scan dependencies"
         uses: ./.github/actions/scan-dependencies
         with:

@@ -11,3 +11,15 @@
 !project.code-workspace
 
 # Please, add your custom content below!
+**/__pycache__
+**/.ruff_cache
+**/.mypy_cache
+
+# Testing artefacts
+**/.hypothesis
+pathology-api/test-artefacts/
+
+# Any environment files
+**/.env
+
+**/.DS_Store

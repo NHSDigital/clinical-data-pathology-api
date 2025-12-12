@@ -1,0 +1,21 @@
+name: "Check Python format"
+description: "Check Python format"
+inputs:
+  python_version:
+    description: "Python version to use"
+    required: true
+runs:
+  using: "composite"
+  steps:
+    # Temporarily install python and Ruff whilst GitHub actions are not running within the container.
+    - name: "Setup Python"
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python_version }}
+    - name: "Install Ruff"
+      shell: bash
+      run: "pip install ruff"
+
+    - name: "Check Python format"
+      shell: bash
+      run: ./scripts/githooks/python-lint-and-format.sh
