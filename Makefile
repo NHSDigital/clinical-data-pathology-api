@@ -44,7 +44,12 @@ publish: # Publish the project artefact @Pipeline
 	# TODO: Implement the artefact publishing step
 
 deploy: clean build # Deploy the project artefact to the target environment @Pipeline
-	@$(docker) run --name pathology-api -p 5001:8080 -d localhost/pathology-api-image
+	@if [[ -n "$${IN_BUILD_CONTAINER}" ]]; then \
+		echo "Starting using local docker network ..." ; \
+		$(docker) run --name pathology-api -p 5001:8080 --network pathology-local -d localhost/pathology-api-image ; \
+	else \
+		$(docker) run --name pathology-api -p 5001:8080 -d localhost/pathology-api-image ; \
+	fi
 
 clean:: stop # Clean-up project resources (main) @Operations
 	@echo "Removing pathology API container..."

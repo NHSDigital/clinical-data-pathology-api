@@ -1,6 +1,6 @@
 {
   "consumer": {
-    "name": "pathologyAPIConsumer"
+    "name": "PathologyAPIConsumer"
   },
   "interactions": [
     {
@@ -60,6 +60,6 @@
     }
   },
   "provider": {
-    "name": "pathologyAPIProvider"
+    "name": "PathologyAPIProvider"
   }
 }

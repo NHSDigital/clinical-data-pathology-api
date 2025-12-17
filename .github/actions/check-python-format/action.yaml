@@ -9,7 +9,7 @@ runs:
   steps:
     # Temporarily install python and Ruff whilst GitHub actions are not running within the container.
     - name: "Setup Python"
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ inputs.python_version }}
     - name: "Install Ruff"

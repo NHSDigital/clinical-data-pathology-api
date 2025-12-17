@@ -19,7 +19,7 @@ class TestConsumerContract:
         /2015-03-31/functions/function/invocations endpoint, with a payload of "World",
         a 200 response containing "Hello, World!" is returned.
         """
-        pact = Pact(consumer="pathologyAPIConsumer", provider="pathologyAPIProvider")
+        pact = Pact(consumer="PathologyAPIConsumer", provider="PathologyAPIProvider")
 
         # Define the expected interaction
         (
@@ -65,7 +65,7 @@ class TestConsumerContract:
         This test defines the contract: when the consumer requests
         a route that doesn't exist, they expect a 404 response.
         """
-        pact = Pact(consumer="pathologyAPIConsumer", provider="pathologyAPIProvider")
+        pact = Pact(consumer="PathologyAPIConsumer", provider="PathologyAPIProvider")
 
         # Define the expected interaction
         (
