@@ -1,10 +1,12 @@
 name: "CI/CD publish"
 
 on:
-  pull_request:
-    types: [closed]
-    branches:
-      - main
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag for the release'
+        required: true
+        default: 'v0.0.0'
 
 jobs:
   metadata:
@@ -22,7 +24,7 @@ jobs:
       version: ${{ steps.variables.outputs.version }}
     steps:
       - name: "Checkout code"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: "Set CI/CD variables"
         id: variables
         run: |
@@ -53,7 +55,7 @@ jobs:
     timeout-minutes: 3
     steps:
       - name: "Checkout code"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: "Get the artefacts"
         run: |
           echo "Getting the artefacts created by the build stage ..."

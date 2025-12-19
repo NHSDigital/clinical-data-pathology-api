@@ -1,22 +1,15 @@
-# Repository Template
+# Clinical Data Pathology API
 
-[![CI/CD Pull Request](https://github.com/nhs-england-tools/repository-template/actions/workflows/cicd-1-pull-request.yaml/badge.svg)](https://github.com/nhs-england-tools/repository-template/actions/workflows/cicd-1-pull-request.yaml)
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=repository-template&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=repository-template)
+[![CI/CD Pull Request](https://github.com/NHSDigital/clinical-data-pathology-api/actions/workflows/cicd-1-pull-request.yaml/badge.svg)](https://github.com/NHSDigital/clinical-data-pathology-api/actions/workflows/cicd-1-pull-request.yaml)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=NHSDigital_clinical-data-pathology-api&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=NHSDigital_clinical-data-pathology-api)
 
-Start with an overview or a brief description of what the project is about and what it does. For example -
+Repository housing all code responsible for handling the Clinical Data Pathology APIs. This repository houses the various Python modules responsible for managing logic within the APIs, as well as all the Terraform code responsible for deploying the APIs within an environment.
 
-Welcome to our repository template designed to streamline your project setup! This robust template provides a reliable starting point for your new projects, covering an essential tech stack and encouraging best practices in documenting.
-
-This repository template aims to foster a user-friendly development environment by ensuring that every included file is concise and adequately self-documented. By adhering to this standard, we can promote increased clarity and maintainability throughout your project's lifecycle. Bundled within this template are resources that pave the way for seamless repository creation. Currently supported technologies are:
-
-- Terraform
-- Docker
-
-Make use of this repository template to expedite your project setup and enhance your productivity right from the get-go. Enjoy the advantage of having a well-structured, self-documented project that reduces overhead and increases focus on what truly matters - coding!
+The Pathology and Laboratory Reporting - FHIR APIs look to provide a replacement for the existing [PMIP EDIFACT](https://digital.nhs.uk/developer/api-catalogue/pathology-messaging-edifact) flows for providing test results, implemented utilising the [Pathology FHIR Implementation Guide](https://simplifier.net/guide/pathology-fhir-implementation-guide/Home). This implementation guide provides an implementation of the [DAPB4101: Pathology and Laboratory Medicine Reporting Information Standard](https://digital.nhs.uk/data-and-information/information-standards/governance/latest-activity/standards-and-collections/dapb4101-pathology-and-laboratory-medicine-reporting-information-standard).
 
 ## Table of Contents
 
-- [Repository Template](#repository-template)
+- [Clinical Data Pathology API](#clinical-data-pathology-api)
   - [Table of Contents](#table-of-contents)
   - [Setup](#setup)
     - [Prerequisites](#prerequisites)
@@ -32,56 +25,47 @@ Make use of this repository template to expedite your project setup and enhance 
 
 ## Setup
 
-By including preferably a one-liner or if necessary a set of clear CLI instructions we improve user experience. This should be a frictionless installation process that works on various operating systems (macOS, Linux, Windows WSL) and handles all the dependencies.
-
-Clone the repository
+Clone the repository.
 
 ```shell
-git clone https://github.com/nhs-england-tools/repository-template.git
-cd nhs-england-tools/repository-template
+git clone git@github.com:NHSDigital/clinical-data-pathology-api.git
+cd clinical-data-pathology-api.git
 ```
+
+The project can then be built within a [Dev Container](https://containers.dev/) as defined within the file outlined under `.devcontainer/devcontainer.json`. When opening the project within Visual Studio Code, if the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) is installed, you should be prompted to re-open the folder within a Dev Container if you wish. If accepted, this should build the Dev Container locally which will include all required libraries and tools for development.
+
+> [!NOTE]<br>
+> If any additional certificates need to be trusted when building locally, these can be added to the `infrastructure/images/build-container/resources/dev-certificates` directory. These certificates will then automatically be trusted by the build container when the `INCLUDE_DEV_CERTS` docker build argument is set to `true`.
+>
+> If running in Windows Subsystem for Linux (WSL) on Windows the vscode Dev containers extension should be configured to use WSL {"dev.containers.executeInWSL": true}.
+> It is also necessary for the repository to be cloned into the WSL filesystem and on the first build of the container (and any subsequent complete rebuilds without cache). vscode should then be connected to WSL, before subsequently opening the repository folder. The container can then be built as described above.
 
 ### Prerequisites
 
 The following software packages, or their equivalents, are expected to be installed and configured:
 
-- [Docker](https://www.docker.com/) container runtime or a compatible tool, e.g. [Podman](https://podman.io/),
-- [asdf](https://asdf-vm.com/) version manager,
-- [GNU make](https://www.gnu.org/software/make/) 3.82 or later,
-
-> [!NOTE]<br>
-> The version of GNU make available by default on macOS is earlier than 3.82. You will need to upgrade it or certain `make` tasks will fail. On macOS, you will need [Homebrew](https://brew.sh/) installed, then to install `make`, like so:
->
-> ```shell
-> brew install make
-> ```
->
-> You will then see instructions to fix your [`$PATH`](https://github.com/nhs-england-tools/dotfiles/blob/main/dot_path.tmpl) variable to make the newly installed version available. If you are using [dotfiles](https://github.com/nhs-england-tools/dotfiles), this is all done for you.
-
-- [GNU sed](https://www.gnu.org/software/sed/) and [GNU grep](https://www.gnu.org/software/grep/) are required for the scripted command-line output processing,
-- [GNU coreutils](https://www.gnu.org/software/coreutils/) and [GNU binutils](https://www.gnu.org/software/binutils/) may be required to build dependencies like Python, which may need to be compiled during installation,
-
-> [!NOTE]<br>
-> For macOS users, installation of the GNU toolchain has been scripted and automated as part of the `dotfiles` project. Please see this [script](https://github.com/nhs-england-tools/dotfiles/blob/main/assets/20-install-base-packages.macos.sh) for details.
-
-- [Python](https://www.python.org/) required to run Git hooks,
-- [`jq`](https://jqlang.github.io/jq/) a lightweight and flexible command-line JSON processor.
+- A container manager for running containers locally, such as [Colima](https://github.com/abiosoft/colima) on Mac OS, or [Docker](https://docs.docker.com/engine/install/) within WSL on Windows or Linux natively.
 
 ### Configuration
 
-Installation and configuration of the toolchain dependencies
-
-```shell
-make config
-```
+Installation and configuration of the toolchain dependencies is completed as part of building the Dev container as described above.
 
 ## Usage
 
-After a successful installation, provide an informative example of how this project can be used. Additional code snippets, screenshots and demos work well in this space. You may also link to the other documentation resources, e.g. the [User Guide](./docs/user-guide.md) to demonstrate more use cases and to show more features.
+Once the build container has been built and is up and running, A few different `make` targets are provided for installing dependencies and building the codebase.
+
+- `dependencies` - installs all dependencies required for the project
+- `build` - builds the codebase so that it is ready for deployment
+- `deploy` - builds the codebase and deploys it within a separate container locally.
+- `clean` - stops and removes any containers outside of the Dev container locally.
 
 ### Testing
 
 There are `make` tasks for you to configure to run your tests.  Run `make test` to see how they work.  You should be able to use the same entry points for local development as in your CI pipeline.
+
+#### Continuous Integration
+
+More documentation on the GitHub actions utilised to support continuous integration can be found on the [Continuous Integration](./.github/github_actions.md) page.
 
 ## Design
 
@@ -117,6 +101,10 @@ Describe or link templates on how to raise an issue, feature request or make a c
 - Backlog, board, roadmap, ways of working
 - High-level requirements, guiding principles, decision records, etc.
 
+### Signed Commits
+
+To be able to contribute to the repository, any commits created need to be signed. See the [commit signing setup guide page](https://github.com/NHSDigital/software-engineering-quality-framework/blob/main/practices/guides/commit-signing.md) for guidance on setting up this up.
+
 ## Contacts
 
 Provide a way to contact the owners of this project. It can be a team, an individual or information on the means of getting in touch via active communication channels, e.g. opening a GitHub discussion, raising an issue, etc.
@@ -127,4 +115,4 @@ Provide a way to contact the owners of this project. It can be a team, an indivi
 
 Unless stated otherwise, the codebase is released under the MIT License. This covers both the codebase and any sample code in the documentation.
 
-Any HTML or Markdown documentation is [© Crown Copyright](https://www.nationalarchives.gov.uk/information-management/re-using-public-sector-information/uk-government-licensing-framework/crown-copyright/) and available under the terms of the [Open Government Licence v3.0](https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/).
+Any HTML or Markdown documentation is [© Crown Copyright](https://www.nationalarchives.gov.uk/information-management/re-using-public-sector-information/uk-government-licensing-framework/crown-copyright/) and available under the terms of the [Open Government Licence v3.0](https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/)

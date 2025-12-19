@@ -1,0 +1,23 @@
+#!/bin/bash
+
+set -e
+
+# Merge coverage data
+cd pathology-api/test-artefacts
+# Rename files to .coverage.* format that coverage combine expects
+mv unit-test-results/coverage.unit .coverage.unit
+mv contract-test-results/coverage.contract .coverage.contract
+mv schema-test-results/coverage.schema .coverage.schema
+mv integration-test-results/coverage.integration .coverage.integration
+mv acceptance-test-results/coverage.acceptance .coverage.acceptance
+# Go back to project root for coverage operations
+cd ..
+poetry run coverage combine test-artefacts
+
+# Generate reports
+poetry run coverage report
+poetry run coverage xml -o test-artefacts/coverage-merged.xml
+# Fix paths in XML to be relative to repository root for SonarCloud
+sed -i -e 's#filename="src/#filename="pathology-api/src/#g' \
+        -e 's#filename="\([^/"]*\.py\)"#filename="pathology-api/\1"#g' \
+        test-artefacts/coverage-merged.xml
