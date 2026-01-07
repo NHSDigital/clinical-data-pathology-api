@@ -1,63 +1,125 @@
-import pytest
+from unittest.mock import MagicMock, patch
+
+from aws_lambda_powertools.utilities.typing import LambdaContext
 from lambda_handler import handler
+from pathology_api.fhir.r4.resources import Patient, TestResultBundle
 
 
 class TestHandler:
     """Unit tests for the Lambda handler function."""
 
-    @pytest.mark.parametrize(
-        ("name", "expected_greeting"),
-        [
-            ("Alice", "Hello, Alice!"),
-            ("Bob", "Hello, Bob!"),
-            ("John Doe", "Hello, John Doe!"),
-            ("user123", "Hello, user123!"),
-        ],
-        ids=["simple_name_alice", "simple_name_bob", "name_with_space", "alphanumeric"],
-    )
-    def test_handler_success(self, name: str, expected_greeting: str) -> None:
-        """Test handler returns 200 with greeting for valid names."""
-        # Arrange
-        event = {"payload": name}
-        context: dict[str, str] = {}
+    @patch("aws_lambda_powertools.utilities.data_classes.APIGatewayProxyEventV2")
+    def test_handler_success(self, APIGatewayProxyEventV2: type[MagicMock]) -> None:
+        """Test handler returns 200 with processed bundle for valid input."""
+        bundle = TestResultBundle(
+            type="transaction",
+            entries=[
+                TestResultBundle.Entry(
+                    full_url="patient",
+                    resource=Patient(
+                        identifier=Patient.PatientIdentifier.from_nhs_number(
+                            "nhs_number"
+                        )
+                    ),
+                )
+            ],
+        )
+        event = APIGatewayProxyEventV2()
+        event.body = bundle.model_dump_json(by_alias=True)
+        context = LambdaContext()
 
         # Act
         response = handler(event, context)
 
         # Assert
         assert response["statusCode"] == 200
-        assert response["body"] == expected_greeting
-        assert response["headers"] == {"Content-Type": "application/json"}
+        assert response["headers"] == {"Content-Type": "application/fhir+json"}
 
-    @pytest.mark.parametrize(
-        ("event", "expected_status", "expected_body"),
-        [
-            ({"other_key": "value"}, 400, "Name is required"),
-            ({"payload": ""}, 400, "Name cannot be empty"),
-            ({"payload": None}, 400, "Name cannot be empty"),
-            (
-                {"payload": "nonexistent"},
-                404,
-                "Provided name cannot be found. name=nonexistent",
-            ),
-        ],
-        ids=[
-            "missing_payload_key",
-            "empty_payload",
-            "none_payload",
-            "nonexistent_user",
-        ],
-    )
-    def test_handler_error_cases(
-        self, event: dict[str, str], expected_status: int, expected_body: str
-    ) -> None:
-        """Test handler returns appropriate error responses for invalid or
-        nonexistent input.
-        """
+        response_body = response["body"]
+        assert isinstance(response_body, TestResultBundle)
+        assert response_body.bundle_type == bundle.bundle_type
+        assert response_body.entries == bundle.entries
+
+        assert response_body.identifier is not None
+        assert response_body.identifier.system == "https://tools.ietf.org/html/rfc4122"
+        # A UUID value so can only check its presence.
+        assert response_body.identifier.value is not None
+
+    @patch("aws_lambda_powertools.utilities.data_classes.APIGatewayProxyEventV2")
+    def test_handler_no_payload(self, APIGatewayProxyEventV2: type[MagicMock]) -> None:
+        """Test handler returns 400 when no payload is provided."""
+        # Arrange
+        event = APIGatewayProxyEventV2()
+        event.body = None
+        context = LambdaContext()
+
         # Act
-        response = handler(event, {})
+        response = handler(event, context)
 
         # Assert
-        assert response["statusCode"] == expected_status
-        assert response["body"] == expected_body
-        assert response["headers"] == {"Content-Type": "application/json"}
+        assert response["statusCode"] == 400
+        assert response["body"] == "No payload provided."
+        assert response["headers"] == {"Content-Type": "text/plain"}
+
+    @patch("aws_lambda_powertools.utilities.data_classes.APIGatewayProxyEventV2")
+    def test_handler_empty_payload(
+        self, APIGatewayProxyEventV2: type[MagicMock]
+    ) -> None:
+        """Test handler returns 400 when empty payload is provided."""
+        # Arrange
+        event = APIGatewayProxyEventV2()
+        event.body = ""
+        context = LambdaContext()
+
+        # Act
+        response = handler(event, context)
+
+        # Assert
+        assert response["statusCode"] == 400
+        assert response["body"] == "No payload provided."
+        assert response["headers"] == {"Content-Type": "text/plain"}
+
+    @patch("aws_lambda_powertools.utilities.data_classes.APIGatewayProxyEventV2")
+    def test_handler_invalid_json(
+        self, APIGatewayProxyEventV2: type[MagicMock]
+    ) -> None:
+        """Test handler handles invalid JSON payload."""
+        # Arrange
+        event = APIGatewayProxyEventV2()
+        event.body = "invalid json"
+        context = LambdaContext()
+
+        response = handler(event, context)
+
+        # Assert
+        assert response["statusCode"] == 400
+        assert response["body"] == "Invalid payload provided."
+        assert response["headers"] == {"Content-Type": "text/plain"}
+
+    @patch("aws_lambda_powertools.utilities.data_classes.APIGatewayProxyEventV2")
+    def test_handler_processing_error(
+        self, APIGatewayProxyEventV2: type[MagicMock]
+    ) -> None:
+        """Test handler returns 404 when handle_request raises ValueError."""
+        # Arrange
+        bundle = TestResultBundle(
+            type="transaction",
+        )
+        event = APIGatewayProxyEventV2()
+        event.body = bundle.model_dump_json(by_alias=True)
+        context = LambdaContext()
+        error_message = "Test processing error"
+
+        with patch(
+            "lambda_handler.handle_request", side_effect=ValueError(error_message)
+        ):
+            # Act
+            response = handler(event, context)
+
+            # Assert
+            assert response["statusCode"] == 404
+            assert (
+                response["body"]
+                == f"Error processing provided bundle. Error: {error_message}"
+            )
+            assert response["headers"] == {"Content-Type": "text/plain"}
