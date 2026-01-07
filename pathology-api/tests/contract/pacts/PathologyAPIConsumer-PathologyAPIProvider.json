@@ -16,12 +16,25 @@
       "type": "Synchronous/HTTP"
     },
     {
-      "description": "a request for the hello world message",
+      "description": "a request for the Bundle endpoint",
       "pending": false,
       "request": {
         "body": {
           "content": {
-            "payload": "World"
+            "entry": [
+              {
+                "fullUrl": "patient",
+                "resource": {
+                  "identifier": {
+                    "system": "https://fhir.nhs.uk/Id/nhs-number",
+                    "value": "nhs_number"
+                  },
+                  "resourceType": "Patient"
+                }
+              }
+            ],
+            "resourceType": "Bundle",
+            "type": "document"
           },
           "contentType": "application/json",
           "encoded": false
@@ -32,17 +45,90 @@
           ]
         },
         "method": "POST",
-        "path": "/2015-03-31/functions/function/invocations"
+        "path": "/FHIR/R4/Bundle"
       },
       "response": {
         "body": {
-          "content": "{\"statusCode\": 200, \"headers\": {\"Content-Type\": \"application/json\"}, \"body\": \"Hello, World!\"}",
-          "contentType": "text/plain;charset=utf-8",
+          "content": {
+            "entry": [
+              {
+                "fullUrl": "patient",
+                "resource": {
+                  "identifier": {
+                    "system": "https://fhir.nhs.uk/Id/nhs-number",
+                    "value": "nhs_number"
+                  },
+                  "resourceType": "Patient"
+                }
+              }
+            ],
+            "identifier": {
+              "system": "https://tools.ietf.org/html/rfc4122",
+              "value": null
+            },
+            "meta": {
+              "lastUpdated": "2026-01-16T12:00:00.000Z"
+            },
+            "resourceType": "Bundle",
+            "type": "document"
+          },
+          "contentType": "application/fhir+json",
+          "encoded": false
+        },
+        "generators": {
+          "body": {
+            "$.identifier.value": {
+              "type": "Uuid"
+            }
+          }
+        },
+        "headers": {
+          "Content-Type": [
+            "application/fhir+json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.identifier.value": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^([0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}|[0-9A-F]{8}(-[0-9A-F]{4}){3}-[0-9A-F]{12})$"
+                }
+              ]
+            },
+            "$.meta.lastUpdated": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "format": "yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'",
+                  "match": "datetime"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "a request for the status endpoint",
+      "pending": false,
+      "request": {
+        "method": "GET",
+        "path": "/_status"
+      },
+      "response": {
+        "body": {
+          "content": "OK",
+          "contentType": "text/plain",
           "encoded": false
         },
         "headers": {
           "Content-Type": [
-            "text/plain;charset=utf-8"
+            "text/plain"
           ]
         },
         "status": 200
