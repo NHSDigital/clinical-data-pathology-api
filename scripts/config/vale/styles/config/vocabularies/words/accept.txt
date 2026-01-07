@@ -36,3 +36,4 @@ Trufflehog
 VMs
 [Vv]scode
 sublicense
+wsl

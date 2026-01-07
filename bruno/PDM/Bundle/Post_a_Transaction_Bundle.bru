@@ -1,0 +1,135 @@
+meta {
+  name: Post a Transaction Bundle
+  type: http
+  seq: 5
+}
+
+post {
+  url: https://int.api.service.nhs.uk/patient-data-manager/FHIR/R4/
+  body: json
+  auth: inherit
+}
+
+headers {
+  X-Request-ID: bf95293b-13d3-46a4-abe0-f64f7ed9adfd
+}
+
+body:json {
+  {
+    "resourceType": "Bundle",
+    "type": "transaction",
+    "entry": [
+      {
+        "request": {
+          "method": "PUT",
+          "url": "Observation/ec5e3a08-a4fe-462b-b627-d553b53a66f2",
+          "ifMatch": "0"
+        },
+        "resource": {
+          "resourceType": "Observation",
+          "id": "ec5e3a08-a4fe-462b-b627-d553b53a66f2",
+          "meta": {
+            "profile": [
+              "https://fhir.hl7.org.uk/StructureDefinition/UKCore-Observation-Group-Lab"
+            ]
+          },
+          "identifier": [
+            {
+              "system": "https://tools.ietf.org/html/rfc4122",
+              "value": "331b7489-c241-4235-93e6-614579d7e14e"
+            }
+          ],
+          "status": "final",
+          "category": [
+            {
+              "coding": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                  "code": "laboratory",
+                  "display": "Laboratory"
+                }
+              ]
+            }
+          ],
+          "code": {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "252167001",
+                "display": "Urea and electrolytes"
+              }
+            ]
+          },
+          "subject": {
+            "reference": "urn:uuid:45d437b5-52b9-42a6-aafd-2bbe967f00d8",
+            "display": "WELSH, Joel",
+            "identifier": {
+              "system": "https://fhir.nhs.uk/Id/nhs-number",
+              "value": "9727710638"
+            }
+          },
+          "issued": "2022-03-08T14:23:00+00:00",
+          "performer": [
+            {
+              "reference": "urn:uuid:1847e638-1b68-4d7a-965f-6d5739b4b16e",
+              "display": "TD008362 PATH LAB 001"
+            }
+          ],
+          "hasMember": [
+            {
+              "reference": "urn:uuid:e6556c4a-cf31-43b2-af6f-9c8604b650f9"
+            }
+          ]
+        }
+      },
+      {
+        "request": {
+          "method": "PUT",
+          "url": "Specimen/57f7db59-e1f9-4b77-903f-7f0441467cb9",
+          "ifMatch": "0"
+        },
+        "resource": {
+          "resourceType": "Specimen",
+          "id": "57f7db59-e1f9-4b77-903f-7f0441467cb9",
+          "meta": {
+            "profile": [
+              "https://fhir.hl7.org.uk/StructureDefinition/UKCore-Specimen"
+            ]
+          },
+          "identifier": [
+            {
+              "system": "http://B82033-pickeringmedicalpractice.com/specimen",
+              "value": "SPC-REQ-20220129-000362"
+            }
+          ],
+          "status": "available",
+          "type": {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "122555007",
+                "display": "Venous blood specimen"
+              }
+            ]
+          },
+          "subject": {
+            "reference": "urn:uuid:45d437b5-52b9-42a6-aafd-2bbe967f00d8",
+            "display": "WELSH, Joel",
+            "identifier": {
+              "system": "https://fhir.nhs.uk/Id/nhs-number",
+              "value": "9727710638"
+            }
+          },
+          "collection": {
+            "collectedDateTime": "2022-01-29T10:18:00+00:00"
+          }
+        }
+      }
+    ]
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

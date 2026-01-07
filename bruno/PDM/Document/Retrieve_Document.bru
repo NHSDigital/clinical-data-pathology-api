@@ -1,0 +1,27 @@
+meta {
+  name: Retrieve Document
+  type: http
+  seq: 4
+}
+
+get {
+  url: https://int.api.service.nhs.uk/patient-data-manager/FHIR/R4/Bundle/6a0c6a4d-9941-35cf-b83d-76fa4b880a85
+  body: none
+  auth: inherit
+}
+
+headers {
+  X-Request-ID: Set By Script
+  X-Correlation-ID: Set By Script
+}
+
+script:pre-request {
+  const crypto = require("crypto");
+  req.setHeader('X-Request-ID', crypto.randomUUID())
+  req.setHeader('X-Correlation-ID', crypto.randomUUID())
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
