@@ -1,0 +1,20 @@
+meta {
+  name: Delete Observation
+  type: http
+  seq: 7
+}
+
+delete {
+  url: https://int.api.service.nhs.uk/patient-data-manager/FHIR/R4/Observation/b9d8d29f-ced1-3d02-b55b-3c01f24c51fd
+  body: none
+  auth: inherit
+}
+
+headers {
+  X-Request-ID: fe07258e-586f-4755-8858-fb8491fe65f9
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
