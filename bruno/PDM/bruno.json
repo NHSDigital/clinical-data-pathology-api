@@ -1,0 +1,15 @@
+{
+  "version": "1",
+  "name": "PDM",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ],
+  "scripts": {
+    "moduleWhiteList": ["jsonwebtoken", "fs", "crypto"],
+    "filesystemAccess": {
+      "allow": true
+    }
+  }
+}
