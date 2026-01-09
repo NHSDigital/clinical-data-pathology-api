@@ -1,6 +1,12 @@
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, ClassVar, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import (
+    BaseModel,
+    Field,
+    SerializeAsAny,
+    ValidatorFunctionWrapHandler,
+    model_validator,
+)
 
 from .elements import Identifier, Meta, UUIDIdentifier
 
@@ -8,30 +14,60 @@ from .elements import Identifier, Meta, UUIDIdentifier
 class Resource(BaseModel):
     """A FHIR R4 Resource base class."""
 
+    # class variable to hold class mappings per resource_type
+    __resource_types__: ClassVar[dict[str, type["Resource"]]] = {}
+
     meta: Annotated[Meta, Field(alias="meta", frozen=True)] = Meta()
-    # This field is set automatically for subclasses via the __init_subclass__ method.
-    # Just setting a default value here so mypy doesn't require this field is set when
-    # instantiating an object.
-    resource_type: str = Field("__resource_type__", alias="resourceType", frozen=True)
+    # Defaulted to "Resource" for type hinting, set based on subclass within
+    # __init_subclass__
+    resource_type: Annotated[str, Field(alias="resourceType", frozen=True)] = "Resource"
 
     def __init_subclass__(cls, resource_type: str, **kwargs: Any) -> None:
+        cls.__resource_types__[resource_type] = cls
+
         cls.resource_type = resource_type
         super().__init_subclass__(**kwargs)
+
+    @model_validator(mode="wrap")
+    @classmethod
+    def validate_with_subtype(
+        cls, value: dict[str, Any], handler: ValidatorFunctionWrapHandler
+    ) -> Any:
+        """
+        Provides a model validator that instantiates the correct Resource subclass
+        based on the its defined resource_type.
+        """
+        # If we're not currently acting on a top level Resource, and we've not been
+        # provided a generic dictonary object, delegate to the normal handler.
+        if cls != Resource or not isinstance(value, dict):
+            return handler(value)
+
+        resource_type = value["resourceType"]
+
+        if not resource_type:
+            raise TypeError("resource_type is required for Resource validation.")
+
+        subclass = cls.__resource_types__.get(resource_type)
+        if not subclass:
+            raise TypeError(f"Unknown resource type: {resource_type}")
+
+        # Instantiate the subclass using the dictionary values.
+        return subclass.model_validate(value)
 
 
 type BundleType = Literal["document", "transaction"]
 
 
-class TestResultBundle(Resource, resource_type="Bundle"):
+class Bundle(Resource, resource_type="Bundle"):
     """A FHIR R4 Bundle resource."""
 
     bundle_type: BundleType = Field(..., alias="type", frozen=True)
     identifier: Annotated[UUIDIdentifier | None, Field(frozen=True)] = None
-    entries: Annotated[list["TestResultBundle.Entry"] | None, Field(frozen=True)] = None
+    entries: Annotated[list["Bundle.Entry"] | None, Field(frozen=True)] = None
 
     class Entry(BaseModel):
         full_url: Annotated[str, Field(frozen=True)]
-        resource: Annotated["AnyResource", Field(frozen=True)]
+        resource: Annotated[SerializeAsAny[Resource], Field(frozen=True)]
 
     def find_resources[T: Resource](self, t: type[T]) -> list[T]:
         """
@@ -67,4 +103,4 @@ class Patient(Resource, resource_type="Patient"):
     identifier: Annotated[PatientIdentifier, Field(frozen=True)]
 
 
-type AnyResource = TestResultBundle | Patient
+type AnyResource = Bundle | Patient

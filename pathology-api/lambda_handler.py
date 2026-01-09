@@ -2,7 +2,7 @@ from typing import TypedDict
 
 from aws_lambda_powertools.utilities.data_classes import APIGatewayProxyEventV2
 from aws_lambda_powertools.utilities.typing import LambdaContext
-from pathology_api.fhir.r4.resources import TestResultBundle
+from pathology_api.fhir.r4.resources import Bundle
 from pathology_api.handler import handle_request
 
 
@@ -32,7 +32,7 @@ def _with_default_headers[T](status_code: int, body: T) -> LambdaResponse[T]:
 
 def handler(
     event: APIGatewayProxyEventV2, _: LambdaContext
-) -> LambdaResponse[TestResultBundle | str]:
+) -> LambdaResponse[Bundle | str]:
     print(f"Received event: {event}")
 
     payload = event.body
@@ -40,7 +40,7 @@ def handler(
         return _with_default_headers(status_code=400, body="No payload provided.")
 
     try:
-        bundle = TestResultBundle.model_validate_json(payload, by_alias=True)
+        bundle = Bundle.model_validate_json(payload, by_alias=True)
     except ValueError:
         return _with_default_headers(status_code=400, body="Invalid payload provided.")
 

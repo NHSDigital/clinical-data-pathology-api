@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from lambda_handler import handler
-from pathology_api.fhir.r4.resources import Patient, TestResultBundle
+from pathology_api.fhir.r4.resources import Bundle, Patient
 
 
 class TestHandler:
@@ -11,10 +11,10 @@ class TestHandler:
     @patch("aws_lambda_powertools.utilities.data_classes.APIGatewayProxyEventV2")
     def test_handler_success(self, APIGatewayProxyEventV2: type[MagicMock]) -> None:
         """Test handler returns 200 with processed bundle for valid input."""
-        bundle = TestResultBundle(
+        bundle = Bundle(
             type="transaction",
             entries=[
-                TestResultBundle.Entry(
+                Bundle.Entry(
                     full_url="patient",
                     resource=Patient(
                         identifier=Patient.PatientIdentifier.from_nhs_number(
@@ -36,7 +36,7 @@ class TestHandler:
         assert response["headers"] == {"Content-Type": "application/fhir+json"}
 
         response_body = response["body"]
-        assert isinstance(response_body, TestResultBundle)
+        assert isinstance(response_body, Bundle)
         assert response_body.bundle_type == bundle.bundle_type
         assert response_body.entries == bundle.entries
 
@@ -102,7 +102,7 @@ class TestHandler:
     ) -> None:
         """Test handler returns 404 when handle_request raises ValueError."""
         # Arrange
-        bundle = TestResultBundle(
+        bundle = Bundle(
             type="transaction",
         )
         event = APIGatewayProxyEventV2()
