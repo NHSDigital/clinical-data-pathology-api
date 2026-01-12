@@ -66,7 +66,7 @@ class Bundle(Resource, resource_type="Bundle"):
     entries: Annotated[list["Bundle.Entry"] | None, Field(frozen=True)] = None
 
     class Entry(BaseModel):
-        full_url: Annotated[str, Field(frozen=True)]
+        full_url: str = Field(..., alias="fullUrl", frozen=True)
         resource: Annotated[SerializeAsAny[Resource], Field(frozen=True)]
 
     def find_resources[T: Resource](self, t: type[T]) -> list[T]:

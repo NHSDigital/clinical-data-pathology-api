@@ -15,7 +15,7 @@ class TestHandler:
             type="transaction",
             entries=[
                 Bundle.Entry(
-                    full_url="patient",
+                    fullUrl="patient",
                     resource=Patient(
                         identifier=Patient.PatientIdentifier.from_nhs_number(
                             "nhs_number"

@@ -25,7 +25,7 @@ build-pathology-api: dependencies
 	@poetry run mypy --no-namespace-packages .
 	@echo "Packaging dependencies..."
 	@poetry build --format=wheel
-	@pip install "dist/pathology_api-0.1.0-py3-none-any.whl" --target "./target/pathology-api"
+	@pip install "dist/pathology_api-0.1.0-py3-none-any.whl" --target "./target/pathology-api" --platform manylinux2014_aarch64 --only-binary=:all:
 	# Copy main file separately as it is not included within the package.
 	@cp lambda_handler.py ./target/pathology-api/
 	@rm -rf ../infrastructure/images/pathology-api/resources/build/
