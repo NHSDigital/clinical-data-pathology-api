@@ -13,7 +13,7 @@ class TestHandler:
         """Test handler returns 200 with processed bundle for valid input."""
         bundle = Bundle(
             type="transaction",
-            entries=[
+            entry=[
                 Bundle.Entry(
                     fullUrl="patient",
                     resource=Patient(

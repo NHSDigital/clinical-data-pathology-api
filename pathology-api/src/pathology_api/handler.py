@@ -32,10 +32,12 @@ def handle_request(bundle: Bundle) -> Bundle:
     for validate_function in _VALIDATION_FUNCTIONS:
         validate_function(bundle)
 
+    print(f"Bundle entries: {bundle.entries}")
     return_bundle = Bundle(
         identifier=UUIDIdentifier(),
         type=bundle.bundle_type,
-        entries=bundle.entries,
+        entry=bundle.entries,
     )
+    print(f"Return bundle: {return_bundle}")
 
     return return_bundle

@@ -10,7 +10,7 @@ class TestHandleRequest:
         # Arrange
         bundle = Bundle(
             type="transaction",
-            entries=[
+            entry=[
                 Bundle.Entry(
                     fullUrl="patient",
                     resource=Patient(
