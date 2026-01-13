@@ -56,5 +56,5 @@ def handler(data: dict[str, Any], _: LambdaContext) -> LambdaResponse:
         )
     except ValueError as err:
         return _with_default_headers(
-            status_code=404, body=f"Error processing provided bundle. Error: {err}"
+            status_code=400, body=f"Error processing provided bundle. Error: {err}"
         )

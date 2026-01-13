@@ -1,0 +1,74 @@
+import datetime
+import uuid
+
+from .elements import Meta, UUIDIdentifier
+
+
+class TestMeta:
+    def test_create(self) -> None:
+        """Test creating a Meta element."""
+        meta = Meta(
+            version_id="1",
+            last_updated=datetime.datetime.fromisoformat("2023-10-01T12:00:00Z"),
+        )
+        assert meta.version_id == "1"
+        assert meta.last_updated == datetime.datetime.fromisoformat(
+            "2023-10-01T12:00:00Z"
+        )
+
+    def test_create_without_last_updated(self) -> None:
+        """Test creating a Meta element without last_updated."""
+        meta = Meta(version_id="2")
+
+        assert meta.version_id == "2"
+        assert meta.last_updated is None
+
+    def test_create_without_version(self) -> None:
+        """Test creating a Meta element without version_id."""
+        meta = Meta(
+            last_updated=datetime.datetime.fromisoformat("2023-10-01T12:00:00Z")
+        )
+
+        assert meta.version_id is None
+        assert meta.last_updated == datetime.datetime.fromisoformat(
+            "2023-10-01T12:00:00Z"
+        )
+
+    def test_with_last_updated(self) -> None:
+        """Test creating a Meta element using with_last_updated class method."""
+        last_updated = datetime.datetime.fromisoformat("2023-10-01T12:00:00Z")
+        meta = Meta.with_last_updated(last_updated)
+
+        assert meta.last_updated == last_updated
+        assert meta.version_id is None
+
+    def test_with_last_updated_defaults_to_now(self) -> None:
+        """Test creating a Meta element with current time when last_updated is None."""
+        before_create = datetime.datetime.now(tz=datetime.timezone.utc)
+        meta = Meta.with_last_updated(None)
+        after_create = datetime.datetime.now(tz=datetime.timezone.utc)
+
+        assert meta.last_updated is not None
+        assert meta.version_id is None
+
+        assert before_create <= meta.last_updated
+        assert meta.last_updated <= after_create
+
+
+class TestUUIDIdentifier:
+    def test_create_with_value(self) -> None:
+        """Test creating a UUIDIdentifier with a specific UUID value."""
+        expected_uuid = uuid.UUID("12345678-1234-5678-1234-567812345678")
+        identifier = UUIDIdentifier(value=expected_uuid)
+
+        assert identifier.system == "https://tools.ietf.org/html/rfc4122"
+        assert identifier.value == str(expected_uuid)
+
+    def test_create_without_value(self) -> None:
+        """Test creating a UUIDIdentifier without providing a UUID value."""
+        identifier = UUIDIdentifier()
+
+        assert identifier.system == "https://tools.ietf.org/html/rfc4122"
+        # Validates that value is a valid UUID v4
+        parsed_uuid = uuid.UUID(identifier.value)
+        assert parsed_uuid.version == 4

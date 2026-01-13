@@ -1,5 +1,6 @@
 import datetime
 import uuid
+from abc import ABC
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
@@ -13,12 +14,25 @@ class Meta:
         last_updated: The last updated timestamp of the resource.
     """
 
+    last_updated: datetime.datetime | None = None
     version_id: str | None = None
-    last_updated: datetime.datetime = datetime.datetime.now(datetime.timezone.utc)
+
+    @classmethod
+    def with_last_updated(cls, last_updated: datetime.datetime | None) -> "Meta":
+        """
+        Create a Meta instance with the provided last_updated timestamp.
+        Args:
+            last_updated: The last updated timestamp.
+        Returns:
+            A Meta instance with the specified last_updated.
+        """
+        return cls(
+            last_updated=last_updated or datetime.datetime.now(tz=datetime.timezone.utc)
+        )
 
 
 @dataclass(frozen=True)
-class Identifier:
+class Identifier(ABC):
     """
     A FHIR R4 Identifier element. See https://hl7.org/fhir/R4/datatypes.html#Identifier.
     Attributes:
@@ -46,21 +60,3 @@ class UUIDIdentifier(Identifier, system="https://tools.ietf.org/html/rfc4122"):
 
     def __init__(self, value: uuid.UUID | None = None):
         super().__init__(value=str(value or uuid.uuid4()))
-
-
-@dataclass(frozen=True)
-class LiteralReference:
-    """Class representing a literal FHIR Reference. See https://hl7.org/fhir/R4/references.html#literal"""
-
-    reference: str
-
-
-@dataclass(frozen=True)
-class LogicalReference[T: Identifier]:
-    """Class representing a logical FHIR Reference. See https://hl7.org/fhir/R4/references.html#logical"""
-
-    identifier: T
-
-
-"""Type defining a FHIR Reference. See https://hl7.org/fhir/R4/references.html#Reference"""
-type Reference[T] = LiteralReference | LogicalReference[T]

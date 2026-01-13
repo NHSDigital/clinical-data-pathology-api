@@ -1,4 +1,5 @@
-from unittest.mock import MagicMock, patch
+from typing import Any
+from unittest.mock import patch
 
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from lambda_handler import handler
@@ -8,8 +9,7 @@ from pathology_api.fhir.r4.resources import Bundle, Patient
 class TestHandler:
     """Unit tests for the Lambda handler function."""
 
-    @patch("aws_lambda_powertools.utilities.data_classes.APIGatewayProxyEventV2")
-    def test_handler_success(self, APIGatewayProxyEventV2: type[MagicMock]) -> None:
+    def test_handler_success(self) -> None:
         """Test handler returns 200 with processed bundle for valid input."""
         bundle = Bundle(
             type="transaction",
@@ -24,8 +24,7 @@ class TestHandler:
                 )
             ],
         )
-        event = APIGatewayProxyEventV2()
-        event.body = bundle.model_dump_json(by_alias=True)
+        event = {"body": bundle.model_dump_json(by_alias=True)}
         context = LambdaContext()
 
         # Act
@@ -36,21 +35,87 @@ class TestHandler:
         assert response["headers"] == {"Content-Type": "application/fhir+json"}
 
         response_body = response["body"]
-        assert isinstance(response_body, Bundle)
-        assert response_body.bundle_type == bundle.bundle_type
-        assert response_body.entries == bundle.entries
+        assert isinstance(response_body, str)
 
-        assert response_body.identifier is not None
-        assert response_body.identifier.system == "https://tools.ietf.org/html/rfc4122"
+        response_bundle = Bundle.model_validate_json(response_body, by_alias=True)
+        assert response_bundle.bundle_type == bundle.bundle_type
+        assert response_bundle.entries == bundle.entries
+
+        assert response_bundle.identifier is not None
+        assert (
+            response_bundle.identifier.system == "https://tools.ietf.org/html/rfc4122"
+        )
         # A UUID value so can only check its presence.
-        assert response_body.identifier.value is not None
+        assert response_bundle.identifier.value is not None
 
-    @patch("aws_lambda_powertools.utilities.data_classes.APIGatewayProxyEventV2")
-    def test_handler_no_payload(self, APIGatewayProxyEventV2: type[MagicMock]) -> None:
+    def test_handler_no_patient_resource(self) -> None:
+        """
+        Test handler returns 400 when provided bundle doesn't include a patient
+        resource.
+        """
+        bundle = Bundle(
+            type="transaction",
+            entry=[],
+        )
+        event = {"body": bundle.model_dump_json(by_alias=True)}
+        context = LambdaContext()
+
+        # Act
+        response = handler(event, context)
+
+        # Assert
+        assert response["statusCode"] == 400
+        assert response["headers"] == {"Content-Type": "application/fhir+json"}
+        assert (
+            response["body"] == "Error processing provided bundle. "
+            "Error: Test Result Bundle must reference at least one Patient resource."
+        )
+
+    def test_handler_multiple_patient_resources(self) -> None:
+        """
+        Test handler returns 400 when provided bundle includes multiple patient
+        resources.
+        """
+        bundle = Bundle(
+            type="transaction",
+            entry=[
+                Bundle.Entry(
+                    fullUrl="patient1",
+                    resource=Patient(
+                        identifier=Patient.PatientIdentifier.from_nhs_number(
+                            "nhs_number1"
+                        )
+                    ),
+                ),
+                Bundle.Entry(
+                    fullUrl="patient2",
+                    resource=Patient(
+                        identifier=Patient.PatientIdentifier.from_nhs_number(
+                            "nhs_number2"
+                        )
+                    ),
+                ),
+            ],
+        )
+        event = {"body": bundle.model_dump_json(by_alias=True)}
+        context = LambdaContext()
+
+        # Act
+        response = handler(event, context)
+
+        # Assert
+        assert response["statusCode"] == 400
+        assert response["headers"] == {"Content-Type": "application/fhir+json"}
+        assert (
+            response["body"] == "Error processing provided bundle. "
+            "Error: Test Result Bundle must not reference more than one Patient "
+            "resource."
+        )
+
+    def test_handler_no_payload(self) -> None:
         """Test handler returns 400 when no payload is provided."""
         # Arrange
-        event = APIGatewayProxyEventV2()
-        event.body = None
+        event = {"body": None}
         context = LambdaContext()
 
         # Act
@@ -59,16 +124,12 @@ class TestHandler:
         # Assert
         assert response["statusCode"] == 400
         assert response["body"] == "No payload provided."
-        assert response["headers"] == {"Content-Type": "text/plain"}
+        assert response["headers"] == {"Content-Type": "application/fhir+json"}
 
-    @patch("aws_lambda_powertools.utilities.data_classes.APIGatewayProxyEventV2")
-    def test_handler_empty_payload(
-        self, APIGatewayProxyEventV2: type[MagicMock]
-    ) -> None:
+    def test_handler_empty_payload(self) -> None:
         """Test handler returns 400 when empty payload is provided."""
         # Arrange
-        event = APIGatewayProxyEventV2()
-        event.body = ""
+        event: dict[str, Any] = {}
         context = LambdaContext()
 
         # Act
@@ -77,16 +138,12 @@ class TestHandler:
         # Assert
         assert response["statusCode"] == 400
         assert response["body"] == "No payload provided."
-        assert response["headers"] == {"Content-Type": "text/plain"}
+        assert response["headers"] == {"Content-Type": "application/fhir+json"}
 
-    @patch("aws_lambda_powertools.utilities.data_classes.APIGatewayProxyEventV2")
-    def test_handler_invalid_json(
-        self, APIGatewayProxyEventV2: type[MagicMock]
-    ) -> None:
+    def test_handler_invalid_json(self) -> None:
         """Test handler handles invalid JSON payload."""
         # Arrange
-        event = APIGatewayProxyEventV2()
-        event.body = "invalid json"
+        event = {"body": "invalid json"}
         context = LambdaContext()
 
         response = handler(event, context)
@@ -94,19 +151,15 @@ class TestHandler:
         # Assert
         assert response["statusCode"] == 400
         assert response["body"] == "Invalid payload provided."
-        assert response["headers"] == {"Content-Type": "text/plain"}
+        assert response["headers"] == {"Content-Type": "application/fhir+json"}
 
-    @patch("aws_lambda_powertools.utilities.data_classes.APIGatewayProxyEventV2")
-    def test_handler_processing_error(
-        self, APIGatewayProxyEventV2: type[MagicMock]
-    ) -> None:
+    def test_handler_processing_error(self) -> None:
         """Test handler returns 404 when handle_request raises ValueError."""
         # Arrange
         bundle = Bundle(
             type="transaction",
         )
-        event = APIGatewayProxyEventV2()
-        event.body = bundle.model_dump_json(by_alias=True)
+        event = {"body": bundle.model_dump_json(by_alias=True)}
         context = LambdaContext()
         error_message = "Test processing error"
 
@@ -117,9 +170,9 @@ class TestHandler:
             response = handler(event, context)
 
             # Assert
-            assert response["statusCode"] == 404
+            assert response["statusCode"] == 400
             assert (
                 response["body"]
                 == f"Error processing provided bundle. Error: {error_message}"
             )
-            assert response["headers"] == {"Content-Type": "text/plain"}
+            assert response["headers"] == {"Content-Type": "application/fhir+json"}

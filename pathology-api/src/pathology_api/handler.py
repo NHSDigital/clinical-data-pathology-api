@@ -10,12 +10,12 @@ def _ensure_test_result_references_patient(bundle: Bundle) -> None:
     }
     if not patient_references:
         raise ValueError(
-            "TestResultBundle must reference at least one Patient resource."
+            "Test Result Bundle must reference at least one Patient resource."
         )
 
     if len(patient_references) > 1:
         raise ValueError(
-            "TestResultBundle must not reference more than one Patient resource."
+            "Test Result Bundle must not reference more than one Patient resource."
         )
 
 
