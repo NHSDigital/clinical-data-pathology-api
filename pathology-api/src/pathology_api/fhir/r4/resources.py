@@ -85,6 +85,11 @@ class Bundle(Resource, resource_type="Bundle"):
             entry.resource for entry in self.entries if isinstance(entry.resource, t)
         ]
 
+    @classmethod
+    def empty(cls, bundle_type: BundleType) -> "Bundle":
+        """Create an empty Bundle of the specified type."""
+        return cls(type=bundle_type, entry=None)
+
 
 class Patient(Resource, resource_type="Patient"):
     """A FHIR R4 Patient resource."""
@@ -101,6 +106,3 @@ class Patient(Resource, resource_type="Patient"):
             return cls(value=nhs_number)
 
     identifier: Annotated[PatientIdentifier, Field(frozen=True)]
-
-
-type AnyResource = Bundle | Patient
