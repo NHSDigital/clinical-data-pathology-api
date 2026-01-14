@@ -1,7 +1,7 @@
 meta {
   name: Get Auth Token
   type: http
-  seq: NaN
+  seq: 2
 }
 
 post {
@@ -63,7 +63,6 @@ script:pre-request {
 }
 
 script:post-response {
-
   bru.setEnvVar("auth_token", res.getBody().access_token)
 }
 

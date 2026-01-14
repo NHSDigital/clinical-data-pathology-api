@@ -1,7 +1,7 @@
 meta {
   name: Create a Specimen
   type: http
-  seq: 5
+  seq: 2
 }
 
 post {
@@ -40,9 +40,13 @@ body:json {
           ]
       },
       "subject": {
-          "reference": "urn:uuid:ab87a3f8-1d37-44a9-804e-5e962598a6e4",
-          "display": "WELSH, Joel"
-      },
+            "reference": "urn:uuid:45d437b5-52b9-42a6-aafd-2bbe967f00d8",
+            "display": "WELSH, Joel",
+            "identifier": {
+              "system": "https://fhir.nhs.uk/Id/nhs-number",
+              "value": "9727710638"
+            }
+          },
       "collection": {
           "collectedDateTime": "2022-01-29T10:18:00+00:00"
       }
