@@ -1,0 +1,129 @@
+name: Preview Environment
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - closed
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+env:
+  AWS_REGION: eu-west-2
+  PREVIEW_PREFIX: preview-
+  LAMBDA_RUNTIME: python3.14
+  LAMBDA_HANDLER: handler.handler
+  LAMBDA_ROLE_ARN: ${{ secrets.LAMBDA_ROLE_ARN }}
+
+jobs:
+  pr-preview:
+    name: "PR preview management"
+    runs-on: ubuntu-latest
+    outputs:
+      function_name: ${{ steps.names.outputs.function_name }}
+      preview_url: ${{ steps.names.outputs.preview_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Set up Python
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548
+        with:
+          python-version: "3.14"
+
+      - name: Package artifact
+        run: |
+          cd infrastructure/environments/preview
+          rm -f artifact.zip
+          zip -r artifact.zip .
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@56d6a583f00f6bad6d19d91d53a7bc3b8143d0e9
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Sanitize branch name
+        id: branch
+        run: |
+          branch="${{ github.head_ref }}"
+          if [ -z "$branch" ]; then branch="${{ github.ref_name }}"; fi
+          safe=$(echo "$branch" | sed -E 's/[^a-zA-Z0-9._-]+/-/g' | tr '[:upper:]' '[:lower:]')
+          echo "branch=$branch" >> $GITHUB_OUTPUT
+          echo "safe=$safe" >> $GITHUB_OUTPUT
+
+      - name: Compute function name
+        id: names
+        run: |
+          SAFE=${{ steps.branch.outputs.safe }}
+          FN="${{ env.PREVIEW_PREFIX }}${SAFE}"
+          echo "function_name=$FN" >> "$GITHUB_OUTPUT"
+          URL="https://${SAFE}.dev.endpoints.pathology-laboratory-reporting.national.nhs.uk"
+          echo "preview_url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Create or update preview Lambda (on open/sync/reopen)
+        if: github.event.action != 'closed'
+        run: |
+          cd infrastructure/environments/preview
+          FN="${{ steps.names.outputs.function_name }}"
+          echo "Deploying preview function: $FN"
+          wait_for_lambda_ready() {
+            while true; do
+            status=$(aws lambda get-function-configuration --function-name "$FN" --query 'LastUpdateStatus' --output text 2>/dev/null || echo "Unknown")
+            if [ "$status" = "Successful" ] || [ "$status" = "Unknown" ]; then
+              break
+            fi
+            if [ "$status" = "Failed" ]; then
+              echo "Lambda is in Failed state; check logs." >&2
+              exit 1
+            fi
+            echo "Lambda update status: $status — waiting..."
+            sleep 5
+          done
+          }
+          if aws lambda get-function --function-name "$FN" >/dev/null 2>&1; then
+            wait_for_lambda_ready
+            aws lambda update-function-configuration --function-name "$FN" --handler "${{ env.LAMBDA_HANDLER }}" || true
+            wait_for_lambda_ready
+            aws lambda update-function-code --function-name "$FN" --zip-file "fileb://artifact.zip" --publish
+          else
+            aws lambda create-function --function-name "$FN" \
+              --runtime "${{ env.LAMBDA_RUNTIME }}" \
+              --handler "${{ env.LAMBDA_HANDLER }}" \
+              --zip-file "fileb://artifact.zip" \
+              --role "${{ env.LAMBDA_ROLE_ARN }}" \
+              --publish
+            wait_for_lambda_ready
+          fi
+
+      - name: Delete preview Lambda (on PR closed)
+        if: github.event.action == 'closed'
+        run: |
+          FN="${{ steps.names.outputs.function_name }}"
+          echo "Deleting preview function: $FN"
+          aws lambda delete-function --function-name "$FN" || true
+
+      - name: Output function name
+        run: |
+          echo "function = ${{ steps.names.outputs.function_name }}"
+          echo "url      = ${{ steps.names.outputs.preview_url }}"
+
+      - name: Comment function name on PR
+        if: github.event_name == 'pull_request' && github.event.action != 'closed'
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        with:
+          script: |
+            const fn = '${{ steps.names.outputs.function_name }}';
+            const url = '${{ steps.names.outputs.preview_url }}';
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `Preview Lambda: \`${fn}\`\nPreview URL: ${url}`
+            });
