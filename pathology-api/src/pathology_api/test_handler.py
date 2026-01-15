@@ -1,3 +1,5 @@
+import datetime
+
 import pytest
 
 from pathology_api.fhir.r4.resources import Bundle, Patient
@@ -25,7 +27,9 @@ class TestHandleRequest:
         )
 
         # Act
+        before_call = datetime.datetime.now(tz=datetime.timezone.utc)
         result_bundle = handle_request(bundle)
+        after_call = datetime.datetime.now(tz=datetime.timezone.utc)
 
         # Assert
         assert result_bundle is not None
@@ -36,6 +40,16 @@ class TestHandleRequest:
 
         assert result_bundle.bundle_type == bundle.bundle_type
         assert result_bundle.entries == bundle.entries
+
+        # Verify last_updated field
+        assert result_bundle.meta is not None
+        created_meta = result_bundle.meta
+
+        assert created_meta.last_updated is not None
+        assert before_call <= created_meta.last_updated
+        assert created_meta.last_updated <= after_call
+
+        assert created_meta.version_id is None
 
     def test_handle_request_raises_error_when_no_patient_resource(self) -> None:
         """

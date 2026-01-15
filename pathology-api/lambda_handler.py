@@ -52,7 +52,7 @@ def handler(data: dict[str, Any], _: LambdaContext) -> LambdaResponse:
 
         return _with_default_headers(
             status_code=200,
-            body=response.model_dump_json(by_alias=True),
+            body=response.model_dump_json(by_alias=True, exclude_none=True),
         )
     except ValueError as err:
         return _with_default_headers(

@@ -1,6 +1,53 @@
-import pytest
+import json
 
-from .resources import Bundle, Patient
+import pytest
+from pydantic import BaseModel
+
+from .resources import Bundle, Patient, Resource
+
+
+class TestResource:
+    class _TestContainer(BaseModel):
+        resource: Resource
+
+    def test_resource_deserialisation(self) -> None:
+        expected_system = "https://fhir.nhs.uk/Id/nhs-number"
+        expected_nhs_number = "nhs_number"
+        example_json = json.dumps(
+            {
+                "resource": {
+                    "resourceType": "Patient",
+                    "identifier": {
+                        "system": expected_system,
+                        "value": expected_nhs_number,
+                    },
+                }
+            }
+        )
+
+        created_object = self._TestContainer.model_validate_json(example_json)
+        assert isinstance(created_object.resource, Patient)
+
+        created_patient = created_object.resource
+        assert created_patient.identifier is not None
+        assert created_patient.identifier.system == expected_system
+        assert created_patient.identifier.value == expected_nhs_number
+
+    def test_resource_deserialisation_unknown_resource(self) -> None:
+        expected_resource_type = "UnknownResourceType"
+        example_json = json.dumps(
+            {
+                "resource": {
+                    "resourceType": expected_resource_type,
+                }
+            }
+        )
+
+        with pytest.raises(
+            TypeError,
+            match=f"Unknown resource type: {expected_resource_type}",
+        ):
+            self._TestContainer.model_validate_json(example_json)
 
 
 class TestBundle:

@@ -1,6 +1,6 @@
 from collections.abc import Callable
 
-from pathology_api.fhir.r4.elements import UUIDIdentifier
+from pathology_api.fhir.r4.elements import Meta, UUIDIdentifier
 from pathology_api.fhir.r4.resources import Bundle, Patient
 
 
@@ -34,6 +34,7 @@ def handle_request(bundle: Bundle) -> Bundle:
 
     print(f"Bundle entries: {bundle.entries}")
     return_bundle = Bundle(
+        meta=Meta.with_last_updated(),
         identifier=UUIDIdentifier(),
         type=bundle.bundle_type,
         entry=bundle.entries,

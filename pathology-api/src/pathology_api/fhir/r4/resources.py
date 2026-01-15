@@ -17,7 +17,7 @@ class Resource(BaseModel):
     # class variable to hold class mappings per resource_type
     __resource_types__: ClassVar[dict[str, type["Resource"]]] = {}
 
-    meta: Annotated[Meta, Field(alias="meta", frozen=True)] = Meta()
+    meta: Annotated[Meta | None, Field(alias="meta", frozen=True)] = None
     # Defaulted to "Resource" for type hinting, set based on subclass within
     # __init_subclass__
     resource_type: Annotated[str, Field(alias="resourceType", frozen=True)] = "Resource"

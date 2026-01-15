@@ -20,7 +20,7 @@ class Meta:
     version_id: str | None = None
 
     @classmethod
-    def with_last_updated(cls, last_updated: datetime.datetime | None) -> "Meta":
+    def with_last_updated(cls, last_updated: datetime.datetime | None = None) -> "Meta":
         """
         Create a Meta instance with the provided last_updated timestamp.
         Args:
