@@ -38,7 +38,7 @@ class Client:
         return self._send(data=None, include_payload=False)
 
     def _send(self, data: str | None, include_payload: bool) -> requests.Response:
-        json_data = {"payload": data} if include_payload else {}
+        json_data = {"body": data} if include_payload else {}
 
         return requests.post(
             f"{self._lambda_url}/2015-03-31/functions/function/invocations",

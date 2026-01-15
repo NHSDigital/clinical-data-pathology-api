@@ -1,49 +1,74 @@
 """Integration tests for the pathology API using pytest."""
 
+from pathology_api.fhir.r4.resources import Bundle, Patient
+
 from tests.conftest import Client
 
 
-class TestHelloWorld:
-    """Test suite for the hello world endpoint."""
+class TestBundleEndpoint:
+    """Test suite for the bundle endpoint."""
 
-    def test_hello_world_returns_200(self, client: Client) -> None:
-        """Test that the root endpoint returns a 200 status code."""
-        response = client.send("world")
+    def test_bundle_returns_200(self, client: Client) -> None:
+        """Test that the bundle endpoint returns a 200 status code."""
+        bundle = Bundle(
+            type="document",
+            entry=[
+                Bundle.Entry(
+                    fullUrl="patient",
+                    resource=Patient(
+                        identifier=Patient.PatientIdentifier.from_nhs_number(
+                            "nhs_number"
+                        )
+                    ),
+                )
+            ],
+        )
+
+        response = client.send(bundle.model_dump_json(by_alias=True))
+
         assert response.status_code == 200
 
-    def test_hello_world_returns_correct_message(self, client: Client) -> None:
-        """Test that the root endpoint returns the correct message."""
-        response = client.send("World")
-        assert response.json()["body"] == "Hello, World!"
+        response_data = response.json()
+        assert response_data["statusCode"] == 200
 
-    def test_hello_world_content_type(self, client: Client) -> None:
-        """Test that the response has the correct content type."""
-        response = client.send("world")
-        assert "text/plain" in response.headers["Content-Type"]
+        assert response_data["headers"]["Content-Type"] == "application/fhir+json"
 
-    def test_nonexistent_returns_error(self, client: Client) -> None:
-        """Test that non-existent routes return 404."""
-        response = client.send("nonexistent")
-        assert response.status_code == 200
+        response_bundle = Bundle.model_validate_json(
+            response_data["body"], by_alias=True
+        )
 
-        body = response.json().get("body")
-        assert body == "Provided name cannot be found. name=nonexistent"
+        assert response_bundle.bundle_type == bundle.bundle_type
+        assert response_bundle.entries == bundle.entries
 
-        status_code = response.json().get("statusCode")
-        assert status_code == 404
+        assert response_bundle.identifier is not None
+        response_identifier = response_bundle.identifier
+        assert response_identifier.system == "https://tools.ietf.org/html/rfc4122"
+        # A UUID value so can only check its presence.
+        assert response_identifier.value is not None
+
+        assert response_bundle.meta is not None
+        response_meta = response_bundle.meta
+        assert response_meta.last_updated is not None
+        assert response_meta.version_id is None
 
     def test_no_payload_returns_error(self, client: Client) -> None:
         """Test that an error is returned when no payload is provided."""
         response = client.send_without_payload()
         assert response.status_code == 200
 
-        body = response.json().get("body")
-        assert body == "Name is required"
+        response_data = response.json()
+        body = response_data.get("body")
+        assert body == "No payload provided."
+
+        assert response_data.get("statusCode") == 400
 
     def test_empty_name_returns_error(self, client: Client) -> None:
         """Test that an error is returned when an empty name is provided."""
         response = client.send("")
         assert response.status_code == 200
 
-        body = response.json().get("body")
-        assert body == "Name cannot be empty"
+        response_data = response.json()
+        body = response_data.get("body")
+        assert body == "No payload provided."
+
+        assert response_data.get("statusCode") == 400
