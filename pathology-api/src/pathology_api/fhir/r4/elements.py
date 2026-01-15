@@ -2,7 +2,9 @@ import datetime
 import uuid
 from abc import ABC
 from dataclasses import dataclass
-from typing import Any, ClassVar
+from typing import ClassVar
+
+from pydantic import model_validator
 
 
 @dataclass(frozen=True)
@@ -40,23 +42,30 @@ class Identifier(ABC):
         value: The value that is unique within the system.
     """
 
-    system: ClassVar[str]
+    __expected_system__: ClassVar[str] = "__unknown__"
+
     value: str
+    system: str
 
-    def __init_subclass__(cls: type["Identifier"], system: str, **kwargs: Any) -> None:
-        """
-        Subclass constructor to enforce system value.
-        Args:
-            system: The system value for the identifier subclass.
-            **kwargs: Additional keyword arguments.
-        """
+    @model_validator(mode="after")
+    def validate_system(self) -> "Identifier":
+        if self.system != self.__expected_system__:
+            raise ValueError(
+                f"Identifier system '{self.system}' does not match expected "
+                f"system '{self.__expected_system__}'."
+            )
+        return self
 
-        super().__init_subclass__(**kwargs)
-        cls.system = system
+    @classmethod
+    def __init_subclass__(cls, expected_system: str) -> None:
+        cls.__expected_system__ = expected_system
 
 
-class UUIDIdentifier(Identifier, system="https://tools.ietf.org/html/rfc4122"):
+class UUIDIdentifier(Identifier, expected_system="https://tools.ietf.org/html/rfc4122"):
     """A UUID identifier utilising the standard RFC 4122 system."""
 
     def __init__(self, value: uuid.UUID | None = None):
-        super().__init__(value=str(value or uuid.uuid4()))
+        super().__init__(
+            value=str(value or uuid.uuid4()),
+            system=self.__expected_system__,
+        )

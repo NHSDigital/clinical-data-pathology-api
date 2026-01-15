@@ -6,7 +6,7 @@ from pathology_api.fhir.r4.resources import Bundle, Patient
 
 def _ensure_test_result_references_patient(bundle: Bundle) -> None:
     patient_references = {
-        patient.identifier.value for patient in bundle.find_resources(t=Patient)
+        patient.identifier for patient in bundle.find_resources(t=Patient)
     }
     if not patient_references:
         raise ValueError(

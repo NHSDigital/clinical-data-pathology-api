@@ -1,7 +1,10 @@
 import datetime
 import uuid
 
-from .elements import Meta, UUIDIdentifier
+import pytest
+from pydantic import BaseModel
+
+from .elements import Identifier, Meta, UUIDIdentifier
 
 
 class TestMeta:
@@ -72,3 +75,23 @@ class TestUUIDIdentifier:
         # Validates that value is a valid UUID v4
         parsed_uuid = uuid.UUID(identifier.value)
         assert parsed_uuid.version == 4
+
+
+class TestIdentifier:
+    def test_invalid_system(self) -> None:
+        """Test that creating an Identifier with an invalid system raises ValueError."""
+
+        class _TestIdentifier(Identifier, expected_system="expected-system"):
+            pass
+
+        class _TestContainer(BaseModel):
+            identifier: _TestIdentifier
+
+        with pytest.raises(
+            ValueError,
+            match="Identifier system 'invalid-system' does not match expected "
+            "system 'expected-system'.",
+        ):
+            _TestContainer.model_validate(
+                {"identifier": {"system": "invalid-system", "value": "some-value"}}
+            )

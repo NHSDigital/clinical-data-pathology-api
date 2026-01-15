@@ -156,9 +156,7 @@ class TestHandler:
     def test_handler_processing_error(self) -> None:
         """Test handler returns 404 when handle_request raises ValueError."""
         # Arrange
-        bundle = Bundle(
-            type="transaction",
-        )
+        bundle = Bundle.empty(bundle_type="transaction")
         event = {"body": bundle.model_dump_json(by_alias=True)}
         context = LambdaContext()
         error_message = "Test processing error"
