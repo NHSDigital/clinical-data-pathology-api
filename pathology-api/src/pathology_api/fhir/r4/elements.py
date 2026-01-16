@@ -2,9 +2,9 @@ import datetime
 import uuid
 from abc import ABC
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import Annotated, ClassVar
 
-from pydantic import model_validator
+from pydantic import Field, model_validator
 
 
 @dataclass(frozen=True)
@@ -16,8 +16,8 @@ class Meta:
         last_updated: The last updated timestamp of the resource.
     """
 
-    last_updated: datetime.datetime | None = None
-    version_id: str | None = None
+    last_updated: Annotated[datetime.datetime | None, Field(alias="lastUpdated")] = None
+    version_id: Annotated[str | None, Field(alias="versionId")] = None
 
     @classmethod
     def with_last_updated(cls, last_updated: datetime.datetime | None = None) -> "Meta":

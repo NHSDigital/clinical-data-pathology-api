@@ -9,6 +9,9 @@ docker := doas docker
 else
 docker := docker
 endif
+
+dockerNetwork := pathology-local
+
 # ==============================================================================
 
 # Example CI/CD targets are: dependencies, build, publish, deploy, clean, etc.
@@ -40,25 +43,32 @@ build: build-pathology-api # Build the project artefact @Pipeline
 	@$(docker) buildx build --load --provenance=false --build-arg PYTHON_VERSION=${PYTHON_VERSION} -t localhost/pathology-api-image infrastructure/images/pathology-api
 	@echo "Docker image 'pathology-api-image' built successfully!"
 
+	@echo "Building api-gateway-mock using Docker. Utilising python version: ${PYTHON_VERSION} ..."
+	@$(docker) buildx build --load --build-arg PYTHON_VERSION=${PYTHON_VERSION} -t localhost/api-gateway-mock-image infrastructure/images/api-gateway-mock
+	@echo "Docker image 'api-gateway-mock-image' built successfully!"
+
 publish: # Publish the project artefact @Pipeline
 	# TODO: Implement the artefact publishing step
 
 deploy: clean build # Deploy the project artefact to the target environment @Pipeline
-	@if [[ -n "$${IN_BUILD_CONTAINER}" ]]; then \
-		echo "Starting using local docker network ..." ; \
-		$(docker) run --name pathology-api -p 5001:8080 --network pathology-local -d localhost/pathology-api-image ; \
-	else \
-		$(docker) run --name pathology-api -p 5001:8080 -d localhost/pathology-api-image ; \
-	fi
+	$(docker) network create $(dockerNetwork) || echo "Docker network '$(dockerNetwork)' already exists."
+	$(docker) run --name pathology-api -p 5001:8080 --network $(dockerNetwork) -d localhost/pathology-api-image ; \
+	$(docker) run --name api-gateway-mock -p 5002:5000 --network $(dockerNetwork) -d localhost/api-gateway-mock-image ; \
 
 clean:: stop # Clean-up project resources (main) @Operations
 	@echo "Removing pathology API container..."
 	@$(docker) rm pathology-api || echo "No pathology API container currently exists."
 
+	@echo "Removing api-gateway-mock container..."
+	@$(docker) rm api-gateway-mock || echo "No api-gateway-mock container currently exists."
+
 .PHONY: stop
 stop:
 	@echo "Stopping pathology API container..."
 	@$(docker) stop pathology-api || echo "No pathology API container currently running."
+
+	@echo "Stopping api-gateway-mock container..."
+	@$(docker) stop api-gateway-mock || echo "No api-gateway-mock container currently running."
 
 config:: # Configure development environment (main) @Configuration
 	# Configure poetry to trust dev certificate if specified
