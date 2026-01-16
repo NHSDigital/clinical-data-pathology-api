@@ -27,15 +27,10 @@ class TestBundleEndpoint:
         response = client.send(bundle.model_dump_json(by_alias=True))
 
         assert response.status_code == 200
+        assert response.headers["Content-Type"] == "application/fhir+json"
 
         response_data = response.json()
-        assert response_data["statusCode"] == 200
-
-        assert response_data["headers"]["Content-Type"] == "application/fhir+json"
-
-        response_bundle = Bundle.model_validate_json(
-            response_data["body"], by_alias=True
-        )
+        response_bundle = Bundle.model_validate(response_data, by_alias=True)
 
         assert response_bundle.bundle_type == bundle.bundle_type
         assert response_bundle.entries == bundle.entries
@@ -54,21 +49,17 @@ class TestBundleEndpoint:
     def test_no_payload_returns_error(self, client: Client) -> None:
         """Test that an error is returned when no payload is provided."""
         response = client.send_without_payload()
-        assert response.status_code == 200
+        assert response.status_code == 400
 
-        response_data = response.json()
-        body = response_data.get("body")
-        assert body == "No payload provided."
+        response_data = response.text
+        assert response_data == "No payload provided."
 
-        assert response_data.get("statusCode") == 400
+        assert response.status_code == 400
 
     def test_empty_name_returns_error(self, client: Client) -> None:
         """Test that an error is returned when an empty name is provided."""
         response = client.send("")
-        assert response.status_code == 200
+        assert response.status_code == 400
 
-        response_data = response.json()
-        body = response_data.get("body")
-        assert body == "No payload provided."
-
-        assert response_data.get("statusCode") == 400
+        response_data = response.text
+        assert response_data == "No payload provided."

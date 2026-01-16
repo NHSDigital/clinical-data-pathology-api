@@ -1,6 +1,5 @@
 """Pytest configuration and shared fixtures for pathology API tests."""
 
-import json
 import os
 from datetime import timedelta
 from typing import cast
@@ -38,11 +37,9 @@ class Client:
         return self._send(data=None, include_payload=False)
 
     def _send(self, data: str | None, include_payload: bool) -> requests.Response:
-        json_data = {"body": data} if include_payload else {}
-
         return requests.post(
-            f"{self._lambda_url}/2015-03-31/functions/function/invocations",
-            data=json.dumps(json_data),
+            f"{self._lambda_url}/",
+            data=data if include_payload else None,
             timeout=self._timeout,
         )
 
