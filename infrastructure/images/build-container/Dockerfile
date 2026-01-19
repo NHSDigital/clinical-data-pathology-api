@@ -24,11 +24,11 @@ RUN if [ "$INCLUDE_DEV_CERTS" = "true" ] ; then \
     cp -r /resources/dev-certificates/* /etc/ssl/certs/; \
 else \
     rm -r /resources/dev-certificates; \
-fi
+fi \
 
-RUN apk update
+&& apk update \
 
-RUN apk add --no-cache --update bash \
+&& apk add --no-cache --update bash \
     # Required to manage user permissions.
     doas \
     shadow \
@@ -50,10 +50,10 @@ RUN apk add --no-cache --update bash \
     readline-dev \
     sqlite-dev \
     tk-dev \
-    zstd-dev
+    zstd-dev \
 
 # Configure doas to allow members of the wheel group to run commands as root.
-RUN echo "permit :wheel" >> /etc/doas.conf \
+&& echo "permit :wheel" >> /etc/doas.conf \
     && echo "permit nopass :wheel as root cmd apk" >> /etc/doas.conf \
     && echo "permit nopass :wheel as root cmd docker" >> /etc/doas.conf \
     # Change default shell to bash for root user.
@@ -64,13 +64,13 @@ ENV PYENV_ROOT="/.pyenv"
 ENV PATH="$PYENV_ROOT/bin:$PATH"
 
 # Install Python (via pyenv)
-RUN curl -fsSL https://pyenv.run | bash
+RUN curl -fsSL https://pyenv.run | bash \
 
-RUN /.pyenv/bin/pyenv install ${PYTHON_VERSION}
-RUN /.pyenv/bin/pyenv global ${PYTHON_VERSION}
+&& /.pyenv/bin/pyenv install ${PYTHON_VERSION} \
+&& /.pyenv/bin/pyenv global ${PYTHON_VERSION} \
 
 # Initialise pyenv for use.
-RUN /.pyenv/bin/pyenv init -
+&& /.pyenv/bin/pyenv init -
 
 COPY /resources/.bashrc /root/.bashrc
 
@@ -88,12 +88,12 @@ RUN if [ "$(uname -m)" = "aarch64" ] ; then \
 else \
     echo "Installing x86 asdf executable..." ; \
     wget -O asdf.tar.gz "$ASDF_DOWNLOAD_URL/asdf-v0.18.0-linux-amd64.tar.gz"; \
-fi
+fi \
 
-RUN tar -xvf asdf.tar.gz
+&& tar -xvf asdf.tar.gz \
 
 # Install editorconfig-checker to validate formatting.
-RUN mkdir /editorconfig
+&&  mkdir /editorconfig
 WORKDIR /editorconfig
 
 RUN if [ "$(uname -m)" = "aarch64" ] ; then \
