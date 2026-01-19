@@ -1,4 +1,5 @@
 import json
+from typing import Any
 
 import pytest
 from pydantic import BaseModel
@@ -49,18 +50,70 @@ class TestResource:
         ):
             self._TestContainer.model_validate_json(example_json)
 
+    @pytest.mark.parametrize(
+        "value",
+        [
+            pytest.param({"resource": {}}, id="No resourceType key"),
+            pytest.param(
+                {"resource": {"resourceType": None}},
+                id="resourceType is defined as None",
+            ),
+        ],
+    )
+    def test_resource_deserialisation_without_resource_type(
+        self, value: dict[str, Any]
+    ) -> None:
+        example_json = json.dumps(value)
+
+        with pytest.raises(
+            TypeError,
+            match="resourceType is required for Resource validation.",
+        ):
+            self._TestContainer.model_validate_json(example_json)
+
+    @pytest.mark.parametrize(
+        ("json", "expected_error_message"),
+        [
+            pytest.param(
+                json.dumps({"resourceType": "invalid", "type": "document"}),
+                "Value error, Resource type 'invalid' does not match expected "
+                "resource type 'Bundle'.",
+                id="Invalid resource type",
+            ),
+            pytest.param(
+                json.dumps({"resourceType": None, "type": "document"}),
+                "1 validation error for Bundle\nresourceType\n  "
+                "Input should be a valid string",
+                id="Input should be a valid string",
+            ),
+            pytest.param(
+                json.dumps({"type": "document"}),
+                "1 validation error for Bundle\nresourceType\n  Field required",
+                id="Missing resource type",
+            ),
+        ],
+    )
+    def test_deserialise_wrong_resource_type(
+        self, json: str, expected_error_message: str
+    ) -> None:
+        with pytest.raises(
+            ValueError,
+            match=expected_error_message,
+        ):
+            Bundle.model_validate_json(json, strict=True)
+
 
 class TestBundle:
     def test_create(self) -> None:
         """Test creating a Bundle resource."""
         expected_entry = Bundle.Entry(
             fullUrl="http://example.com/resource1",
-            resource=Patient(
+            resource=Patient.create(
                 identifier=Patient.PatientIdentifier.from_nhs_number("nhs_number")
             ),
         )
 
-        bundle = Bundle(
+        bundle = Bundle.create(
             type="document",
             entry=[expected_entry],
         )
@@ -77,33 +130,57 @@ class TestBundle:
         assert bundle.identifier is None
         assert bundle.entries is None
 
-    def test_find_resources(self) -> None:
-        expected_resource = Patient(
-            identifier=Patient.PatientIdentifier.from_nhs_number("nhs_number")
-        )
+    expected_resource = Patient.create(
+        identifier=Patient.PatientIdentifier.from_nhs_number("nhs_number")
+    )
 
-        bundle = Bundle(
-            type="document",
-            entry=[
-                Bundle.Entry(
-                    fullUrl="http://example.com/resource1",
-                    resource=expected_resource,
-                ),
-            ],
-        )
+    @pytest.mark.parametrize(
+        ("entries", "expected_results"),
+        [
+            pytest.param(
+                [
+                    Bundle.Entry(
+                        fullUrl="http://example.com/resource1",
+                        resource=expected_resource,
+                    ),
+                    Bundle.Entry(
+                        fullUrl="http://example.com/resource1",
+                        resource=expected_resource,
+                    ),
+                ],
+                [expected_resource, expected_resource],
+                id="Duplicate resources",
+            ),
+            pytest.param(
+                [
+                    Bundle.Entry(
+                        fullUrl="http://example.com/resource1",
+                        resource=expected_resource,
+                    ),
+                ],
+                [expected_resource],
+                id="Single resource",
+            ),
+        ],
+    )
+    def test_find_resources(
+        self, entries: list[Bundle.Entry], expected_results: list[Resource]
+    ) -> None:
+        bundle = Bundle.create(type="document", entry=entries)
 
         result = bundle.find_resources(Patient)
-        assert result == [expected_resource]
+        assert result == expected_results
 
     @pytest.mark.parametrize(
         "bundle",
         [
             pytest.param(Bundle.empty("document"), id="Bundle has no entries at all"),
             pytest.param(
-                Bundle(type="document", entry=[]), id="Bundle has an empty entries list"
+                Bundle.create(type="document", entry=[]),
+                id="Bundle has an empty entries list",
             ),
             pytest.param(
-                Bundle(
+                Bundle.create(
                     type="document",
                     entry=[
                         Bundle.Entry(
@@ -130,7 +207,7 @@ class TestPatient:
         nhs_number = "1234567890"
 
         expected_identifier = Patient.PatientIdentifier.from_nhs_number(nhs_number)
-        patient = Patient(identifier=expected_identifier)
+        patient = Patient.create(identifier=expected_identifier)
 
         assert patient.identifier == expected_identifier
 

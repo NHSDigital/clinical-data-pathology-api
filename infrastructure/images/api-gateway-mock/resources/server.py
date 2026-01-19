@@ -1,12 +1,34 @@
+from logging.config import dictConfig
+
 import requests
 from flask import Flask, request
+
+# Very simple logging configuration taken from https://flask.palletsprojects.com/en/stable/logging/
+dictConfig(
+    {
+        "version": 1,
+        "formatters": {
+            "default": {
+                "format": "[%(asctime)s] %(levelname)s in %(module)s: %(message)s",
+            },
+        },
+        "handlers": {
+            "wsgi": {
+                "class": "logging.StreamHandler",
+                "stream": "ext://sys.stdout",
+                "formatter": "default",
+            }
+        },
+        "root": {"level": "INFO", "handlers": ["wsgi"]},
+    }
+)
 
 app = Flask(__name__)
 
 
 @app.route("/", methods=["POST"])
 def forward_request():
-    print(f"received request with data: {request.get_data(as_text=True)}")
+    app.logger.info("received request with data: %s", request.get_data(as_text=True))
 
     response = requests.post(
         "http://pathology-api:8080/2015-03-31/functions/function/invocations",
@@ -17,9 +39,21 @@ def forward_request():
         timeout=120,
     )
 
-    response_data = response.json()
-    return (
-        response_data["body"],
-        response_data["statusCode"],
-        response_data["headers"],
+    app.logger.info(
+        "response: status_code=%s, body=%s", response.status_code, response.text
     )
+
+    response_data = response.json()
+    app.logger.info("response data: %s", response_data)
+
+    output = (
+        (
+            response_data["body"],
+            response_data["statusCode"],
+            response_data["headers"],
+        )
+        if "body" in response_data
+        else (response_data, 500, {"Content-Type": "text/plain"})
+    )
+
+    return output

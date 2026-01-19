@@ -5,13 +5,16 @@ from pathology_api.fhir.r4.resources import Bundle, Patient
 
 
 def _ensure_test_result_references_patient(bundle: Bundle) -> None:
-    patient_references = {
+    patient_references = [
         patient.identifier for patient in bundle.find_resources(t=Patient)
-    }
+    ]
     if not patient_references:
         raise ValueError(
             "Test Result Bundle must reference at least one Patient resource."
         )
+
+    print(f"Bundle.entries {bundle.entries}")
+    print(f"Patient references found: {patient_references}")
 
     if len(patient_references) > 1:
         raise ValueError(
@@ -33,7 +36,7 @@ def handle_request(bundle: Bundle) -> Bundle:
         validate_function(bundle)
 
     print(f"Bundle entries: {bundle.entries}")
-    return_bundle = Bundle(
+    return_bundle = Bundle.create(
         meta=Meta.with_last_updated(),
         identifier=UUIDIdentifier(),
         type=bundle.bundle_type,

@@ -10,4 +10,3 @@ WORKDIR /resources
 RUN pip install --no-cache-dir -r requirements.txt
 
 ENTRYPOINT ["flask", "--app", "server", "run", "--host=0.0.0.0"]
-# ENTRYPOINT ["sleep", "infinity"]

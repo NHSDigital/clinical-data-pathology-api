@@ -30,12 +30,12 @@ def step_send_valid_bundle(client: Client, response_context: ResponseContext) ->
         response_context: Context to store the response
     """
     response_context.response = client.send(
-        Bundle(
+        Bundle.create(
             type="document",
             entry=[
                 Bundle.Entry(
                     fullUrl="patient",
-                    resource=Patient(
+                    resource=Patient.create(
                         identifier=Patient.PatientIdentifier.from_nhs_number(
                             "nhs_number"
                         )

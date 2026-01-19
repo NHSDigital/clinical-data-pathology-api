@@ -12,12 +12,12 @@ class TestHandleRequest:
     def test_handle_request(self) -> None:
         """Test that handle_request processes a valid bundle correctly."""
         # Arrange
-        bundle = Bundle(
+        bundle = Bundle.create(
             type="transaction",
             entry=[
                 Bundle.Entry(
                     fullUrl="patient",
-                    resource=Patient(
+                    resource=Patient.create(
                         identifier=Patient.PatientIdentifier.from_nhs_number(
                             "nhs_number"
                         )
@@ -56,7 +56,7 @@ class TestHandleRequest:
         Test that handle_request raises ValueError when bundle has no Patient resource.
         """
         # Arrange
-        bundle = Bundle(
+        bundle = Bundle.create(
             type="transaction",
             entry=[],
         )
@@ -76,24 +76,20 @@ class TestHandleRequest:
         resources.
         """
         # Arrange
-        bundle = Bundle(
+        patient = Patient.create(
+            identifier=Patient.PatientIdentifier.from_nhs_number("nhs_number_1")
+        )
+
+        bundle = Bundle.create(
             type="transaction",
             entry=[
                 Bundle.Entry(
                     fullUrl="patient1",
-                    resource=Patient(
-                        identifier=Patient.PatientIdentifier.from_nhs_number(
-                            "nhs_number_1"
-                        )
-                    ),
+                    resource=patient,
                 ),
                 Bundle.Entry(
                     fullUrl="patient2",
-                    resource=Patient(
-                        identifier=Patient.PatientIdentifier.from_nhs_number(
-                            "nhs_number_2"
-                        )
-                    ),
+                    resource=patient,
                 ),
             ],
         )

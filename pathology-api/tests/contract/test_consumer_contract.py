@@ -15,8 +15,7 @@ class TestConsumerContract:
         """Test the consumer's expectation of the Bundle endpoint.
 
         This test defines the contract: when the consumer requests
-        GET/PUT/POST/PATCH/TRACE/DELETE to the
-        /2015-03-31/functions/function/invocations endpoint, with a valid Bundle,
+        POST to the Bundle endpoint, with a valid Bundle,
         a 200 response containing the newly created Bundle is returned.
         """
         pact = Pact(consumer="PathologyAPIConsumer", provider="PathologyAPIProvider")

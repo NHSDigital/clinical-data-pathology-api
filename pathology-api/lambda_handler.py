@@ -22,7 +22,7 @@ class LambdaResponse(TypedDict):
 
 
 def _with_default_headers(status_code: int, body: str) -> LambdaResponse:
-    content_type = "application/fhir+json"
+    content_type = "application/fhir+json" if status_code == 200 else "text/plain"
     return {
         "statusCode": status_code,
         "headers": {"Content-Type": content_type},
@@ -45,6 +45,9 @@ def handler(data: dict[str, Any], _: LambdaContext) -> LambdaResponse:
         print("Errors:")
         for e in err.errors():
             print(e)
+        return _with_default_headers(status_code=400, body="Invalid payload provided.")
+    except TypeError as err:
+        print(f"Error parsing payload. error: {str(err)}")
         return _with_default_headers(status_code=400, body="Invalid payload provided.")
 
     try:

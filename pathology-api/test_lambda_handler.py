@@ -11,12 +11,12 @@ class TestHandler:
 
     def test_handler_success(self) -> None:
         """Test handler returns 200 with processed bundle for valid input."""
-        bundle = Bundle(
+        bundle = Bundle.create(
             type="transaction",
             entry=[
                 Bundle.Entry(
                     fullUrl="patient",
-                    resource=Patient(
+                    resource=Patient.create(
                         identifier=Patient.PatientIdentifier.from_nhs_number(
                             "nhs_number"
                         )
@@ -53,7 +53,7 @@ class TestHandler:
         Test handler returns 400 when provided bundle doesn't include a patient
         resource.
         """
-        bundle = Bundle(
+        bundle = Bundle.create(
             type="transaction",
             entry=[],
         )
@@ -65,7 +65,7 @@ class TestHandler:
 
         # Assert
         assert response["statusCode"] == 400
-        assert response["headers"] == {"Content-Type": "application/fhir+json"}
+        assert response["headers"] == {"Content-Type": "text/plain"}
         assert (
             response["body"] == "Error processing provided bundle. "
             "Error: Test Result Bundle must reference at least one Patient resource."
@@ -76,12 +76,12 @@ class TestHandler:
         Test handler returns 400 when provided bundle includes multiple patient
         resources.
         """
-        bundle = Bundle(
+        bundle = Bundle.create(
             type="transaction",
             entry=[
                 Bundle.Entry(
                     fullUrl="patient1",
-                    resource=Patient(
+                    resource=Patient.create(
                         identifier=Patient.PatientIdentifier.from_nhs_number(
                             "nhs_number1"
                         )
@@ -89,7 +89,7 @@ class TestHandler:
                 ),
                 Bundle.Entry(
                     fullUrl="patient2",
-                    resource=Patient(
+                    resource=Patient.create(
                         identifier=Patient.PatientIdentifier.from_nhs_number(
                             "nhs_number2"
                         )
@@ -105,7 +105,7 @@ class TestHandler:
 
         # Assert
         assert response["statusCode"] == 400
-        assert response["headers"] == {"Content-Type": "application/fhir+json"}
+        assert response["headers"] == {"Content-Type": "text/plain"}
         assert (
             response["body"] == "Error processing provided bundle. "
             "Error: Test Result Bundle must not reference more than one Patient "
@@ -124,7 +124,7 @@ class TestHandler:
         # Assert
         assert response["statusCode"] == 400
         assert response["body"] == "No payload provided."
-        assert response["headers"] == {"Content-Type": "application/fhir+json"}
+        assert response["headers"] == {"Content-Type": "text/plain"}
 
     def test_handler_empty_payload(self) -> None:
         """Test handler returns 400 when empty payload is provided."""
@@ -138,7 +138,7 @@ class TestHandler:
         # Assert
         assert response["statusCode"] == 400
         assert response["body"] == "No payload provided."
-        assert response["headers"] == {"Content-Type": "application/fhir+json"}
+        assert response["headers"] == {"Content-Type": "text/plain"}
 
     def test_handler_invalid_json(self) -> None:
         """Test handler handles invalid JSON payload."""
@@ -151,7 +151,7 @@ class TestHandler:
         # Assert
         assert response["statusCode"] == 400
         assert response["body"] == "Invalid payload provided."
-        assert response["headers"] == {"Content-Type": "application/fhir+json"}
+        assert response["headers"] == {"Content-Type": "text/plain"}
 
     def test_handler_processing_error(self) -> None:
         """Test handler returns 404 when handle_request raises ValueError."""
@@ -173,4 +173,4 @@ class TestHandler:
                 response["body"]
                 == f"Error processing provided bundle. Error: {error_message}"
             )
-            assert response["headers"] == {"Content-Type": "application/fhir+json"}
+            assert response["headers"] == {"Content-Type": "text/plain"}

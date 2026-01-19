@@ -1,10 +1,11 @@
-from typing import Annotated, Any, ClassVar, Literal
+from typing import Annotated, Any, ClassVar, Literal, Self
 
 from pydantic import (
     BaseModel,
     Field,
     SerializeAsAny,
     ValidatorFunctionWrapHandler,
+    field_validator,
     model_validator,
 )
 
@@ -16,16 +17,15 @@ class Resource(BaseModel):
 
     # class variable to hold class mappings per resource_type
     __resource_types__: ClassVar[dict[str, type["Resource"]]] = {}
+    __expected_resource_type__: ClassVar[dict[type["Resource"], str]] = {}
 
     meta: Annotated[Meta | None, Field(alias="meta", frozen=True)] = None
-    # Defaulted to "Resource" for type hinting, set based on subclass within
-    # __init_subclass__
-    resource_type: Annotated[str, Field(alias="resourceType", frozen=True)] = "Resource"
+    resource_type: str = Field(alias="resourceType", frozen=True)
 
     def __init_subclass__(cls, resource_type: str, **kwargs: Any) -> None:
         cls.__resource_types__[resource_type] = cls
+        cls.__expected_resource_type__[cls] = resource_type
 
-        cls.resource_type = resource_type
         super().__init_subclass__(**kwargs)
 
     @model_validator(mode="wrap")
@@ -42,17 +42,36 @@ class Resource(BaseModel):
         if cls != Resource or not isinstance(value, dict):
             return handler(value)
 
+        if "resourceType" not in value or value["resourceType"] is None:
+            raise TypeError("resourceType is required for Resource validation.")
+
         resource_type = value["resourceType"]
 
-        if not resource_type:
-            raise TypeError("resource_type is required for Resource validation.")
-
         subclass = cls.__resource_types__.get(resource_type)
-        if not subclass:
+        if subclass is None:
             raise TypeError(f"Unknown resource type: {resource_type}")
 
         # Instantiate the subclass using the dictionary values.
         return subclass.model_validate(value)
+
+    @classmethod
+    def create(cls, **kwargs: Any) -> Self:
+        """Create a Resource instance with the correct resourceType."""
+        return cls(resourceType=cls.__expected_resource_type__[cls], **kwargs)
+
+    @field_validator("resource_type", mode="after")
+    @classmethod
+    def _validate_resource_type(cls, value: str) -> str:
+        if value is None:
+            raise TypeError("resourceType is required for Resource validation.")
+
+        expected_resource_type = cls.__expected_resource_type__[cls]
+        if value != expected_resource_type:
+            raise ValueError(
+                f"Resource type '{value}' does not match expected "
+                f"resource type '{expected_resource_type}'."
+            )
+        return value
 
 
 type BundleType = Literal["document", "transaction"]
@@ -88,7 +107,7 @@ class Bundle(Resource, resource_type="Bundle"):
     @classmethod
     def empty(cls, bundle_type: BundleType) -> "Bundle":
         """Create an empty Bundle of the specified type."""
-        return cls(type=bundle_type, entry=None)
+        return cls.create(type=bundle_type, entry=None)
 
 
 class Patient(Resource, resource_type="Patient"):

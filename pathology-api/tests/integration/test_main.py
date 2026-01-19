@@ -10,12 +10,12 @@ class TestBundleEndpoint:
 
     def test_bundle_returns_200(self, client: Client) -> None:
         """Test that the bundle endpoint returns a 200 status code."""
-        bundle = Bundle(
+        bundle = Bundle.create(
             type="document",
             entry=[
                 Bundle.Entry(
                     fullUrl="patient",
-                    resource=Patient(
+                    resource=Patient.create(
                         identifier=Patient.PatientIdentifier.from_nhs_number(
                             "nhs_number"
                         )
