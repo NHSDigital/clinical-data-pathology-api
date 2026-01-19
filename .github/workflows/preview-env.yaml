@@ -122,7 +122,7 @@ jobs:
         if: github.event.action == 'closed'
         run: |
           FN="${{ steps.names.outputs.function_name }}"
-          echo "Deleting preview function: $FN"
+          echo "Deleting preview function:  $FN"
           aws lambda delete-function --function-name "$FN" || true
 
       - name: Output function name
