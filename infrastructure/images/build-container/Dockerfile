@@ -24,53 +24,53 @@ RUN if [ "$INCLUDE_DEV_CERTS" = "true" ] ; then \
     cp -r /resources/dev-certificates/* /etc/ssl/certs/; \
 else \
     rm -r /resources/dev-certificates; \
-fi
+fi \
 
-RUN apk update
+    && apk update \
 
-RUN apk add --no-cache --update bash \
-    # Required to manage user permissions.
-    doas \
-    shadow \
-    curl \
-    # Required to validate english usage in prose/comments.
-    vale \
-    # Required to support markdownlint-cli installation.
-    npm \
-    # Required to support the building of other docker images.
-    docker-cli \
-    docker-cli-buildx \
-    # pyenv suggested requirements taken from https://github.com/pyenv/pyenv/wiki#suggested-build-environment
-    build-base \
-    libffi-dev \
-    openssl-dev \
-    bzip2-dev \
-    zlib-dev \
-    xz-dev \
-    readline-dev \
-    sqlite-dev \
-    tk-dev \
-    zstd-dev
+    && apk add --no-cache --update bash \
+        # Required to manage user permissions.
+        doas \
+        shadow \
+        curl \
+        # Required to validate english usage in prose/comments.
+        vale \
+        # Required to support markdownlint-cli installation.
+        npm \
+        # Required to support the building of other docker images.
+        docker-cli \
+        docker-cli-buildx \
+        # pyenv suggested requirements taken from https://github.com/pyenv/pyenv/wiki#suggested-build-environment
+        build-base \
+        libffi-dev \
+        openssl-dev \
+        bzip2-dev \
+        zlib-dev \
+        xz-dev \
+        readline-dev \
+        sqlite-dev \
+        tk-dev \
+        zstd-dev \
 
-# Configure doas to allow members of the wheel group to run commands as root.
-RUN echo "permit :wheel" >> /etc/doas.conf \
-    && echo "permit nopass :wheel as root cmd apk" >> /etc/doas.conf \
-    && echo "permit nopass :wheel as root cmd docker" >> /etc/doas.conf \
-    # Change default shell to bash for root user.
-    && chsh -s /bin/bash root
+    # Configure doas to allow members of the wheel group to run commands as root.
+    && echo "permit :wheel" >> /etc/doas.conf \
+        && echo "permit nopass :wheel as root cmd apk" >> /etc/doas.conf \
+        && echo "permit nopass :wheel as root cmd docker" >> /etc/doas.conf \
+        # Change default shell to bash for root user.
+        && chsh -s /bin/bash root
 
 # Ensure pyenv is on the PATH
 ENV PYENV_ROOT="/.pyenv"
 ENV PATH="$PYENV_ROOT/bin:$PATH"
 
 # Install Python (via pyenv)
-RUN curl -fsSL https://pyenv.run | bash
+RUN curl -fsSL https://pyenv.run | bash \
 
-RUN /.pyenv/bin/pyenv install ${PYTHON_VERSION}
-RUN /.pyenv/bin/pyenv global ${PYTHON_VERSION}
+    && /.pyenv/bin/pyenv install ${PYTHON_VERSION} \
+    && /.pyenv/bin/pyenv global ${PYTHON_VERSION} \
 
-# Initialise pyenv for use.
-RUN /.pyenv/bin/pyenv init -
+    # Initialise pyenv for use.
+    && /.pyenv/bin/pyenv init -
 
 COPY /resources/.bashrc /root/.bashrc
 
@@ -88,12 +88,13 @@ RUN if [ "$(uname -m)" = "aarch64" ] ; then \
 else \
     echo "Installing x86 asdf executable..." ; \
     wget -O asdf.tar.gz "$ASDF_DOWNLOAD_URL/asdf-v0.18.0-linux-amd64.tar.gz"; \
-fi
+fi \
 
-RUN tar -xvf asdf.tar.gz
+    && tar -xvf asdf.tar.gz \
 
-# Install editorconfig-checker to validate formatting.
-RUN mkdir /editorconfig
+    # Install editorconfig-checker to validate formatting.
+    &&  mkdir /editorconfig
+
 WORKDIR /editorconfig
 
 RUN if [ "$(uname -m)" = "aarch64" ] ; then \
