@@ -1,16 +1,22 @@
 openapi: 3.0.3
 info:
-  title: pathology API
-  description: Clinical Data pathology API
-  version: 0.1.0
+  title: Pathology and Laboratory Medicine Reporting - FHIR API
+  description: Clinical Data Pathology API
+  version: 0.1.1
   contact:
     name: API Support
 servers:
   - url: http://localhost:5001
     description: Local development server
+components:
+  securitySchemes:
+    app-level3:
+      $ref: https://proxygen.ptl.api.platform.nhs.uk/components/securitySchemes/app-level3
 paths:
-  /2015-03-31/functions/function/invocations:
+  /:
     post:
+      security:
+      - app-level3: []
       summary: Get hello world message
       description: Returns a simple hello world message
       operationId: postHelloWorld
@@ -54,6 +60,8 @@ paths:
                       type: string
                     description: The stack trace of the error, if an error has occurred
     get:
+      security:
+      - app-level3: []
       summary: Get hello world message
       description: Returns a simple hello world message
       operationId: postHelloWorld
@@ -104,6 +112,8 @@ paths:
               schema:
                 type: string
     put:
+      security:
+      - app-level3: []
       summary: Get hello world message
       description: Returns a simple hello world message
       operationId: postHelloWorld
@@ -154,6 +164,8 @@ paths:
               schema:
                 type: string
     patch:
+      security:
+      - app-level3: []
       summary: Get hello world message
       description: Returns a simple hello world message
       operationId: postHelloWorld
@@ -204,6 +216,8 @@ paths:
               schema:
                 type: string
     delete:
+      security:
+      - app-level3: []
       summary: Get hello world message
       description: Returns a simple hello world message
       operationId: postHelloWorld
@@ -247,6 +261,8 @@ paths:
                       type: string
                     description: The stack trace of the error, if an error has occurred
     trace:
+      security:
+      - app-level3: []
       summary: Get hello world message
       description: Returns a simple hello world message
       operationId: postHelloWorld
@@ -289,3 +305,17 @@ paths:
                     items:
                       type: string
                     description: The stack trace of the error, if an error has occurred
+
+x-nhsd-apim:
+  monitoring: false
+  access:
+  - title: Application Restricted
+    grants:
+      app-level3: []
+  target:
+    type: external
+    healthcheck: /_status
+    url: https://%url-section%.endpoints.pathology-laboratory-reporting.national.nhs.uk
+    security:
+      type: mtls
+      secret: %mtls_secret_name%
