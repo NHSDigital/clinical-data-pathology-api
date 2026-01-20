@@ -2,6 +2,7 @@ import datetime
 
 import pytest
 
+from pathology_api.fhir.r4.elements import UUIDIdentifier
 from pathology_api.fhir.r4.resources import Bundle, Patient
 from pathology_api.handler import handle_request
 
@@ -99,5 +100,30 @@ class TestHandleRequest:
             ValueError,
             match="Test Result Bundle must not reference more than one Patient "
             "resource.",
+        ):
+            handle_request(bundle)
+
+    def test_handle_request_bundle_includes_identifier(
+        self,
+    ) -> None:
+        """
+        Test that handle_request raises ValueError when bundle includes identifier
+        resources.
+        """
+        # Arrange
+        patient = Patient.create(
+            identifier=Patient.PatientIdentifier.from_nhs_number("nhs_number_1")
+        )
+
+        bundle = Bundle.create(
+            identifier=UUIDIdentifier(),
+            type="transaction",
+            entry=[Bundle.Entry(fullUrl="patient1", resource=patient)],
+        )
+
+        # Act & Assert
+        with pytest.raises(
+            ValueError,
+            match="Bundle with identifier is not allowed.",
         ):
             handle_request(bundle)

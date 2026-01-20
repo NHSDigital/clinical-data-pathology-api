@@ -1,9 +1,11 @@
 from typing import Any
 from unittest.mock import patch
 
+import pytest
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from lambda_handler import handler
 from pathology_api.fhir.r4.resources import Bundle, Patient
+from pydantic import ValidationError
 
 
 class TestHandler:
@@ -161,9 +163,8 @@ class TestHandler:
         context = LambdaContext()
         error_message = "Test processing error"
 
-        with patch(
-            "lambda_handler.handle_request", side_effect=ValueError(error_message)
-        ):
+        expected_error = ValueError(error_message)
+        with patch("lambda_handler.handle_request", side_effect=expected_error):
             # Act
             response = handler(event, context)
 
@@ -171,6 +172,38 @@ class TestHandler:
             assert response["statusCode"] == 400
             assert (
                 response["body"]
-                == f"Error processing provided bundle. Error: {error_message}"
+                == f"Error processing provided bundle. Error: {expected_error}"
             )
+            assert response["headers"] == {"Content-Type": "text/plain"}
+
+    @pytest.mark.parametrize(
+        "expected_error",
+        [
+            pytest.param(
+                TypeError("Test type error"),
+                id="TypeError",
+            ),
+            pytest.param(
+                ValidationError("Test validation error", []),
+                id="ValidationError",
+            ),
+        ],
+    )
+    def test_handler_parse_json_error(self, expected_error: Exception) -> None:
+        """Test handler returns 404 when handle_request raises TypeError."""
+        # Arrange
+        bundle = Bundle.empty(bundle_type="transaction")
+        event = {"body": bundle.model_dump_json(by_alias=True)}
+        context = LambdaContext()
+
+        with patch(
+            "pathology_api.fhir.r4.resources.Bundle.model_validate_json",
+            side_effect=expected_error,
+        ):
+            # Act
+            response = handler(event, context)
+
+            # Assert
+            assert response["statusCode"] == 400
+            assert response["body"] == "Invalid payload provided."
             assert response["headers"] == {"Content-Type": "text/plain"}

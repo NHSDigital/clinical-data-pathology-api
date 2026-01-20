@@ -107,7 +107,7 @@ class TestBundle:
     def test_create(self) -> None:
         """Test creating a Bundle resource."""
         expected_entry = Bundle.Entry(
-            fullUrl="http://example.com/resource1",
+            fullUrl="full",
             resource=Patient.create(
                 identifier=Patient.PatientIdentifier.from_nhs_number("nhs_number")
             ),
@@ -140,11 +140,11 @@ class TestBundle:
             pytest.param(
                 [
                     Bundle.Entry(
-                        fullUrl="http://example.com/resource1",
+                        fullUrl="fullUrl",
                         resource=expected_resource,
                     ),
                     Bundle.Entry(
-                        fullUrl="http://example.com/resource1",
+                        fullUrl="fullUrl",
                         resource=expected_resource,
                     ),
                 ],
@@ -154,7 +154,7 @@ class TestBundle:
             pytest.param(
                 [
                     Bundle.Entry(
-                        fullUrl="http://example.com/resource1",
+                        fullUrl="fullUrl",
                         resource=expected_resource,
                     ),
                 ],
@@ -184,7 +184,7 @@ class TestBundle:
                     type="document",
                     entry=[
                         Bundle.Entry(
-                            fullUrl="http://example.com/resource1",
+                            fullUrl="fullUrl",
                             resource=Bundle.empty("document"),
                         ),
                     ],
