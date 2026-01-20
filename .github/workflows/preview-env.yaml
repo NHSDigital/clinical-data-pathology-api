@@ -18,7 +18,6 @@ env:
   PREVIEW_PREFIX: preview-
   LAMBDA_RUNTIME: python3.14
   LAMBDA_HANDLER: handler.handler
-  LAMBDA_ROLE_ARN: ${{ secrets.LAMBDA_ROLE_ARN }}
 
 jobs:
   pr-preview:
@@ -43,10 +42,21 @@ jobs:
           rm -f artifact.zip
           zip -r artifact.zip .
 
+      - name: Select AWS role inputs
+        id: role-select
+        run: |
+          if [ "${{ github.actor }}" = "dependabot[bot]" ]; then
+            echo "aws_role=${{ secrets.DEPENDABOT_AWS_ROLE_ARN }}" >> "$GITHUB_OUTPUT"
+            echo "lambda_role=${{ secrets.DEPENDABOT_LAMBDA_ROLE_ARN }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "aws_role=${{ secrets.AWS_ROLE_ARN }}" >> "$GITHUB_OUTPUT"
+            echo "lambda_role=${{ secrets.LAMBDA_ROLE_ARN }}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@56d6a583f00f6bad6d19d91d53a7bc3b8143d0e9
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-to-assume: ${{ steps.role-select.outputs.aws_role }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Sanitize branch name
@@ -97,7 +107,7 @@ jobs:
               --runtime "${{ env.LAMBDA_RUNTIME }}" \
               --handler "${{ env.LAMBDA_HANDLER }}" \
               --zip-file "fileb://artifact.zip" \
-              --role "${{ env.LAMBDA_ROLE_ARN }}" \
+              --role "${{ steps.role-select.outputs.lambda_role }}" \
               --publish
             wait_for_lambda_ready
           fi
