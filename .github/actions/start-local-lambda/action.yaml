@@ -8,7 +8,7 @@ inputs:
   health-path:
     description: "Health probe path to POST"
     required: false
-    default: "/2015-03-31/functions/function/invocations"
+    default: "/"
   max-seconds:
     description: "Maximum seconds to wait for readiness"
     required: false
