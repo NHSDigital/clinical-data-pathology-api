@@ -16,7 +16,8 @@ permissions:
 env:
   AWS_REGION: eu-west-2
   PREVIEW_PREFIX: pr-
-  LAMBDA_RUNTIME: python3.14
+  PYTHON_VERSION: 3.14
+  LAMBDA_RUNTIME: python${{ env.PYTHON_VERSION }}
   LAMBDA_HANDLER: handler.handler
 
 jobs:
@@ -34,7 +35,12 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548
         with:
-          python-version: "3.14"
+          python-version: "${{ env.PYTHON_VERSION }}"
+
+      - name: "Setup Python project"
+        uses: ./.github/actions/setup-python-project
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Package artifact
         run: |
