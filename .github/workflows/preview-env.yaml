@@ -15,7 +15,7 @@ permissions:
 
 env:
   AWS_REGION: eu-west-2
-  PREVIEW_PREFIX: preview-
+  PREVIEW_PREFIX: pr-
   LAMBDA_RUNTIME: python3.14
   LAMBDA_HANDLER: handler.handler
 
@@ -72,7 +72,13 @@ jobs:
         id: names
         run: |
           SAFE=${{ steps.branch.outputs.safe }}
-          FN="${{ env.PREVIEW_PREFIX }}${SAFE}"
+          PREFIX=${{ env.PREVIEW_PREFIX }}
+          MAX_FN_LEN=64
+          MAX_SAFE_LEN=$((MAX_FN_LEN - ${#PREFIX}))
+          if [ ${#SAFE} -gt "$MAX_SAFE_LEN" ]; then
+            SAFE=${SAFE:0:MAX_SAFE_LEN}
+          fi
+          FN="${PREFIX}${SAFE}"
           echo "function_name=$FN" >> "$GITHUB_OUTPUT"
           URL="https://${SAFE}.dev.endpoints.pathology-laboratory-reporting.national.nhs.uk"
           echo "preview_url=$URL" >> "$GITHUB_OUTPUT"
