@@ -38,9 +38,8 @@ jobs:
 
       - name: Package artifact
         run: |
-          cd infrastructure/environments/preview
-          rm -f artifact.zip
-          zip -r artifact.zip .
+          make build
+          cp pathology-api/target/artifact.zip .
 
       - name: Select AWS role inputs
         id: role-select
