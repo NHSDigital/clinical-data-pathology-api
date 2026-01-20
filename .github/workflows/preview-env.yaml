@@ -18,7 +18,7 @@ env:
   PREVIEW_PREFIX: pr-
   PYTHON_VERSION: 3.14
   LAMBDA_RUNTIME: python3.14
-  LAMBDA_HANDLER: handler.handler
+  LAMBDA_HANDLER: lambda_handler.handler
 
 jobs:
   pr-preview:
