@@ -28,7 +28,7 @@ build-pathology-api: dependencies
 	@poetry run mypy --no-namespace-packages .
 	@echo "Packaging dependencies..."
 	@poetry build --format=wheel
-	@pip install "dist/pathology_api-0.1.0-py3-none-any.whl" --target "./target/pathology-api" --platform manylinux2014_aarch64 --only-binary=:all:
+	@pip install "dist/pathology_api-0.1.0-py3-none-any.whl" --target "./target/pathology-api" --platform manylinux2014_x86_64 --only-binary=:all:
 	# Copy main file separately as it is not included within the package.
 	@cp lambda_handler.py ./target/pathology-api/
 	@rm -rf ../infrastructure/images/pathology-api/resources/build/
@@ -40,7 +40,7 @@ build-pathology-api: dependencies
 .PHONY: build
 build: build-pathology-api # Build the project artefact @Pipeline
 	@echo "Building Docker image using Docker. Utilising python version: ${PYTHON_VERSION} ..."
-	@$(docker) buildx build --load --provenance=false --build-arg PYTHON_VERSION=${PYTHON_VERSION} -t localhost/pathology-api-image infrastructure/images/pathology-api
+	@$(docker) buildx build --load --platform=linux/amd64 --provenance=false --build-arg PYTHON_VERSION=${PYTHON_VERSION} -t localhost/pathology-api-image infrastructure/images/pathology-api
 	@echo "Docker image 'pathology-api-image' built successfully!"
 
 	@echo "Building api-gateway-mock using Docker. Utilising python version: ${PYTHON_VERSION} ..."
@@ -52,7 +52,7 @@ publish: # Publish the project artefact @Pipeline
 
 deploy: clean build # Deploy the project artefact to the target environment @Pipeline
 	$(docker) network create $(dockerNetwork) || echo "Docker network '$(dockerNetwork)' already exists."
-	$(docker) run --name pathology-api -p 5001:8080 --network $(dockerNetwork) -d localhost/pathology-api-image ; \
+	$(docker) run  --platform linux/amd64 --name pathology-api -p 5001:8080 --network $(dockerNetwork) -d localhost/pathology-api-image ; \
 	$(docker) run --name api-gateway-mock -p 5002:5000 --network $(dockerNetwork) -d localhost/api-gateway-mock-image ; \
 
 clean:: stop # Clean-up project resources (main) @Operations
