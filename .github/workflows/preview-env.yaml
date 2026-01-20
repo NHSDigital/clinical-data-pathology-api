@@ -45,7 +45,6 @@ jobs:
       - name: Package artifact
         run: |
           make build
-          cp pathology-api/target/artifact.zip .
 
       - name: Select AWS role inputs
         id: role-select
@@ -91,7 +90,7 @@ jobs:
       - name: Create or update preview Lambda (on open/sync/reopen)
         if: github.event.action != 'closed'
         run: |
-          cd infrastructure/environments/preview
+          cd pathology-api/target/
           FN="${{ steps.names.outputs.function_name }}"
           echo "Deploying preview function: $FN"
           wait_for_lambda_ready() {
