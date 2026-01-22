@@ -1,7 +1,7 @@
 from typing import Any, TypedDict
 
 from aws_lambda_powertools.event_handler import (
-    APIGatewayRestResolver,
+    APIGatewayHttpResolver,
     Response,
 )
 from aws_lambda_powertools.utilities.typing import LambdaContext
@@ -9,7 +9,7 @@ from pathology_api.fhir.r4.resources import Bundle
 from pathology_api.handler import handle_request
 from pydantic import ValidationError
 
-app = APIGatewayRestResolver()
+app = APIGatewayHttpResolver()
 
 
 class LambdaResponse(TypedDict):
