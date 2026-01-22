@@ -30,7 +30,7 @@ build: clean-artifacts dependencies
 	@poetry build --format=wheel
 	VERSION=$$(poetry version -s)
 	@pip install "dist/pathology_api-$$VERSION-py3-none-any.whl" --target "./target/pathology-api" --platform manylinux2014_x86_64 --only-binary=:all:
-	# Copy main file separately as it is not included within the package.
+	# Copy lambda_handler file separately as it is not included within the package.
 	@cp lambda_handler.py ./target/pathology-api/
 	@cd ./target/pathology-api
 	@zip -r "../artifact.zip" .
@@ -55,8 +55,8 @@ publish: # Publish the project artefact @Pipeline
 
 deploy: clean-docker build-images # Deploy the project artefact to the target environment @Pipeline
 	$(docker) network create $(dockerNetwork) || echo "Docker network '$(dockerNetwork)' already exists."
-	$(docker) run  --platform linux/amd64 --name pathology-api -p 5001:8080 --network $(dockerNetwork) -d localhost/pathology-api-image ; \
-	$(docker) run --name api-gateway-mock -p 5002:5000 --network $(dockerNetwork) -d localhost/api-gateway-mock-image ; \
+	$(docker) run  --platform linux/amd64 --name pathology-api -p 5001:8080 --network $(dockerNetwork) -d localhost/pathology-api-image
+	$(docker) run --name api-gateway-mock -p 5002:5000 --network $(dockerNetwork) -d localhost/api-gateway-mock-image
 
 clean-artifacts:
 	@echo "Removing build artefacts..."
