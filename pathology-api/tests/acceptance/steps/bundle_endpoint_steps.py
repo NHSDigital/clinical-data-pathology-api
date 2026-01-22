@@ -15,9 +15,9 @@ def step_api_is_running(client: Client) -> None:
     Args:
         client: Test client from conftest.py
     """
-    response = client.send("")
-    assert response.text is not None
-    assert response.status_code == 400
+    response = client.send_without_payload(path="_status", request_method="GET")
+    assert response.text == "OK"
+    assert response.status_code == 200
 
 
 @when("I send a valid Bundle to the Pathology API")
@@ -30,7 +30,9 @@ def step_send_valid_bundle(client: Client, response_context: ResponseContext) ->
         response_context: Context to store the response
     """
     response_context.response = client.send(
-        Bundle.create(
+        path="FHIR/R4/Bundle",
+        request_method="POST",
+        data=Bundle.create(
             type="document",
             entry=[
                 Bundle.Entry(
@@ -42,7 +44,7 @@ def step_send_valid_bundle(client: Client, response_context: ResponseContext) ->
                     ),
                 )
             ],
-        ).model_dump_json(by_alias=True, exclude_none=True)
+        ).model_dump_json(by_alias=True, exclude_none=True),
     )
 
 
@@ -59,7 +61,9 @@ def step_send_invalid_bundle(client: Client, response_context: ResponseContext) 
         by_alias=True, exclude_none=True
     )
 
-    response_context.response = client.send(bundle)
+    response_context.response = client.send(
+        path="FHIR/R4/Bundle", request_method="POST", data=bundle
+    )
 
 
 # fmt: off

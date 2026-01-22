@@ -1,7 +1,11 @@
+import logging
+import logging.config
 from collections.abc import Callable
 
 from pathology_api.fhir.r4.elements import Meta, UUIDIdentifier
 from pathology_api.fhir.r4.resources import Bundle, Patient
+
+_logger = logging.getLogger(__name__)
 
 
 def _ensure_test_result_references_patient(bundle: Bundle) -> None:
@@ -13,8 +17,8 @@ def _ensure_test_result_references_patient(bundle: Bundle) -> None:
             "Test Result Bundle must reference at least one Patient resource."
         )
 
-    print(f"Bundle.entries {bundle.entries}")
-    print(f"Patient references found: {patient_references}")
+    _logger.debug("Bundle.entries %s", bundle.entries)
+    _logger.debug("Patient references found: %s", patient_references)
 
     if len(patient_references) > 1:
         raise ValueError(
@@ -35,13 +39,13 @@ def handle_request(bundle: Bundle) -> Bundle:
     for validate_function in _VALIDATION_FUNCTIONS:
         validate_function(bundle)
 
-    print(f"Bundle entries: {bundle.entries}")
+    _logger.debug("Bundle entries: %s", bundle.entries)
     return_bundle = Bundle.create(
         meta=Meta.with_last_updated(),
         identifier=UUIDIdentifier(),
         type=bundle.bundle_type,
         entry=bundle.entries,
     )
-    print(f"Return bundle: {return_bundle}")
+    _logger.debug("Return bundle: %s", return_bundle)
 
     return return_bundle

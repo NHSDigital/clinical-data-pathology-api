@@ -9,7 +9,7 @@ servers:
   - url: http://localhost:5002
     description: Local development server
 paths:
-  /:
+  /FHIR/R4/Bundle:
     post:
       summary: Provide a new test result
       description: Provide a new test result to the pathology API

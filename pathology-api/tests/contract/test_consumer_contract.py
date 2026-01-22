@@ -69,7 +69,7 @@ class TestConsumerContract:
             .with_body(request_body)
             .with_request(
                 method="POST",
-                path="/",
+                path="/FHIR/R4/Bundle",
             )
             .will_respond_with(status=200)
             .with_body(
@@ -82,7 +82,7 @@ class TestConsumerContract:
         with pact.serve() as server:
             # Make the actual request to the mock provider
             response = requests.post(
-                f"{server.url}/",
+                f"{server.url}/FHIR/R4/Bundle",
                 json=request_body,
                 timeout=10,
             )
@@ -90,6 +90,38 @@ class TestConsumerContract:
             # Verify the response matches expectations
             assert response.status_code == 200
             assert response.headers["Content-Type"] == "application/fhir+json"
+
+        # Write the pact file after the test
+        pact.write_file("tests/contract/pacts")
+
+    def test_status(self) -> None:
+        """Test the consumer's expectation of the status endpoint.
+
+        This test defines the contract: when the consumer requests
+        GET to the status endpoint, a 200 response with "OK" body is returned.
+        """
+        pact = Pact(consumer="PathologyAPIConsumer", provider="PathologyAPIProvider")
+
+        # Define the expected interaction
+        (
+            pact.upon_receiving("a request for the status endpoint")
+            .with_request(method="GET", path="/_status")
+            .will_respond_with(status=200)
+            .with_body(
+                "OK",
+                content_type="text/plain",
+            )
+        )
+
+        # Start the mock server and execute the test
+        with pact.serve() as server:
+            # Make the actual request to the mock provider
+            response = requests.get(f"{server.url}/_status", timeout=10)
+
+            # Verify the response matches expectations
+            assert response.status_code == 200
+            assert response.text == "OK"
+            assert response.headers["Content-Type"] == "text/plain"
 
         # Write the pact file after the test
         pact.write_file("tests/contract/pacts")

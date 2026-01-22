@@ -26,22 +26,27 @@ dictConfig(
 app = Flask(__name__)
 
 
-@app.route("/<path:path_params>", methods=["POST"])
+@app.route("/", methods=["POST", "GET"], defaults={"path_params": None})
+@app.route("/<path:path_params>", methods=["POST", "GET"])
 def forward_request(path_params):
     app.logger.info("received request with data: %s", request.get_data(as_text=True))
 
     response = requests.post(
-        "http://pathology-api:8080/2015-03-31/functions/function/invocations/",
+        "http://pathology-api:8080/2015-03-31/functions/function/invocations",
         json={
             "body": request.get_data(as_text=True).replace("\n", "").replace(" ", ""),
-            "requestContent": {
-                "http:": {
+            "requestContext": {
+                "http": {
                     "path": f"/{path_params}",
-                    "method": "POST",
-                }
+                    "method": request.method,
+                },
+                "requestId": "request-id",
+                "stage": "$default",
             },
-            "httpMethod": "POST",
-            "path": f"/{path_params}",
+            "httpMethod": request.method,
+            "rawPath": f"/{path_params}",
+            "rawQueryString": "",
+            "pathParameters": {"proxy": path_params},
         },
         headers={"Content-Type": "application/json"},
         timeout=120,

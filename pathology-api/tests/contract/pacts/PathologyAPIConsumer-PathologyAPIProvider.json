@@ -45,7 +45,7 @@
           ]
         },
         "method": "POST",
-        "path": "/"
+        "path": "/FHIR/R4/Bundle"
       },
       "response": {
         "body": {
@@ -108,6 +108,28 @@
               ]
             }
           }
+        },
+        "status": 200
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "a request for the status endpoint",
+      "pending": false,
+      "request": {
+        "method": "GET",
+        "path": "/_status"
+      },
+      "response": {
+        "body": {
+          "content": "OK",
+          "contentType": "text/plain",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "text/plain"
+          ]
         },
         "status": 200
       },

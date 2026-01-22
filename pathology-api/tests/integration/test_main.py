@@ -24,7 +24,11 @@ class TestBundleEndpoint:
             ],
         )
 
-        response = client.send(bundle.model_dump_json(by_alias=True))
+        response = client.send(
+            data=bundle.model_dump_json(by_alias=True),
+            path="FHIR/R4/Bundle",
+            request_method="POST",
+        )
 
         assert response.status_code == 200
         assert response.headers["Content-Type"] == "application/fhir+json"
@@ -48,7 +52,9 @@ class TestBundleEndpoint:
 
     def test_no_payload_returns_error(self, client: Client) -> None:
         """Test that an error is returned when no payload is provided."""
-        response = client.send_without_payload()
+        response = client.send_without_payload(
+            request_method="POST", path="FHIR/R4/Bundle"
+        )
         assert response.status_code == 400
 
         response_data = response.text
@@ -58,8 +64,58 @@ class TestBundleEndpoint:
 
     def test_empty_name_returns_error(self, client: Client) -> None:
         """Test that an error is returned when an empty name is provided."""
-        response = client.send("")
+        response = client.send(data="", request_method="POST", path="FHIR/R4/Bundle")
         assert response.status_code == 400
 
         response_data = response.text
         assert response_data == "No payload provided."
+
+    def test_invalid_request_method(self, client: Client) -> None:
+        """Test that an error is returned when an invalid request method is used."""
+
+        bundle = Bundle.create(
+            type="document",
+            entry=[
+                Bundle.Entry(
+                    fullUrl="patient",
+                    resource=Patient.create(
+                        identifier=Patient.PatientIdentifier.from_nhs_number(
+                            "nhs_number"
+                        )
+                    ),
+                )
+            ],
+        )
+
+        response = client.send(
+            data=bundle.model_dump_json(by_alias=True),
+            request_method="GET",
+            path="FHIR/R4/Bundle",
+        )
+        assert response.status_code == 404
+        assert response.headers["Content-Type"] == "application/json"
+        assert response.json() == {"message": "Not found", "statusCode": 404}
+
+
+class TestStatusEndpoint:
+    """Test suite for the status endpoint."""
+
+    def test_status_returns_200(self, client: Client) -> None:
+        """Test that the status endpoint returns a 200 status code."""
+        response = client.send_without_payload(request_method="GET", path="_status")
+        assert response.status_code == 200
+        assert response.headers["Content-Type"] == "text/plain"
+
+        response_data = response.text
+        assert response_data == "OK"
+
+    def test_invalid_request_method(self, client: Client) -> None:
+        """Test that an error is returned when an invalid request method is used."""
+        response = client.send(
+            data="",
+            request_method="POST",
+            path="_status",
+        )
+        assert response.status_code == 404
+        assert response.headers["Content-Type"] == "application/json"
+        assert response.json() == {"message": "Not found", "statusCode": 404}
