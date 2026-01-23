@@ -115,7 +115,7 @@ class Patient(Resource, resource_type="Patient"):
         """A FHIR R4 Patient Identifier utilising the NHS Number system."""
 
         def __init__(self, value: str):
-            super().__init__(value=value, system=self.__expected_system)
+            super().__init__(value=value, system=self._expected_system)
 
         @classmethod
         def from_nhs_number(cls, nhs_number: str) -> "Patient.PatientIdentifier":

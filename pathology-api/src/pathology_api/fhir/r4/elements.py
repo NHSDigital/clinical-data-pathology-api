@@ -42,23 +42,23 @@ class Identifier(ABC):
         value: The value that is unique within the system.
     """
 
-    __expected_system: ClassVar[str] = "__unknown__"
+    _expected_system: ClassVar[str] = "__unknown__"
 
     value: str
     system: str
 
     @model_validator(mode="after")
     def validate_system(self) -> "Identifier":
-        if self.system != self.__expected_system:
+        if self.system != self._expected_system:
             raise ValueError(
                 f"Identifier system '{self.system}' does not match expected "
-                f"system '{self.__expected_system}'."
+                f"system '{self._expected_system}'."
             )
         return self
 
     @classmethod
     def __init_subclass__(cls, expected_system: str) -> None:
-        cls.__expected_system = expected_system
+        cls._expected_system = expected_system
 
 
 class UUIDIdentifier(Identifier, expected_system="https://tools.ietf.org/html/rfc4122"):
@@ -67,5 +67,5 @@ class UUIDIdentifier(Identifier, expected_system="https://tools.ietf.org/html/rf
     def __init__(self, value: uuid.UUID | None = None):
         super().__init__(
             value=str(value or uuid.uuid4()),
-            system=self.__expected_system,
+            system=self._expected_system,
         )
