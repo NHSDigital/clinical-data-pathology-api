@@ -62,9 +62,6 @@ class Resource(BaseModel):
     @field_validator("resource_type", mode="after")
     @classmethod
     def _validate_resource_type(cls, value: str) -> str:
-        if value is None:
-            raise TypeError("resourceType is required for Resource validation.")
-
         expected_resource_type = cls.__expected_resource_type__[cls]
         if value != expected_resource_type:
             raise ValueError(
@@ -97,11 +94,10 @@ class Bundle(Resource, resource_type="Bundle"):
         Returns:
             A list of resources of the specified type.
         """
-        if not self.entries:
-            return []
-
         return [
-            entry.resource for entry in self.entries if isinstance(entry.resource, t)
+            entry.resource
+            for entry in self.entries or []
+            if isinstance(entry.resource, t)
         ]
 
     @classmethod

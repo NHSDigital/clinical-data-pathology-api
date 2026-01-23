@@ -1,5 +1,4 @@
 import logging
-import logging.config
 from collections.abc import Callable
 
 from pathology_api.fhir.r4.elements import Meta, UUIDIdentifier
@@ -27,7 +26,7 @@ def _ensure_test_result_references_patient(bundle: Bundle) -> None:
 
 
 type ValidationFunction = Callable[[Bundle], None]
-_VALIDATION_FUNCTIONS: list[ValidationFunction] = [
+_validation_functions: list[ValidationFunction] = [
     _ensure_test_result_references_patient,
 ]
 
@@ -36,7 +35,7 @@ def handle_request(bundle: Bundle) -> Bundle:
     if bundle.identifier:
         raise ValueError("Bundle with identifier is not allowed.")
 
-    for validate_function in _VALIDATION_FUNCTIONS:
+    for validate_function in _validation_functions:
         validate_function(bundle)
 
     _logger.debug("Bundle entries: %s", bundle.entries)
