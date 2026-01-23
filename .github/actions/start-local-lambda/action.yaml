@@ -5,10 +5,6 @@ inputs:
     description: "Command to start local Lambda"
     required: false
     default: "make deploy"
-  health-path:
-    description: "Health probe path to POST"
-    required: false
-    default: "/"
   max-seconds:
     description: "Maximum seconds to wait for readiness"
     required: false

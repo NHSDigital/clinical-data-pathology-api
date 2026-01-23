@@ -16,15 +16,15 @@ class Resource(BaseModel):
     """A FHIR R4 Resource base class."""
 
     # class variable to hold class mappings per resource_type
-    __resource_types__: ClassVar[dict[str, type["Resource"]]] = {}
-    __expected_resource_type__: ClassVar[dict[type["Resource"], str]] = {}
+    __resource_types: ClassVar[dict[str, type["Resource"]]] = {}
+    __expected_resource_type: ClassVar[dict[type["Resource"], str]] = {}
 
     meta: Annotated[Meta | None, Field(alias="meta", frozen=True)] = None
     resource_type: str = Field(alias="resourceType", frozen=True)
 
     def __init_subclass__(cls, resource_type: str, **kwargs: Any) -> None:
-        cls.__resource_types__[resource_type] = cls
-        cls.__expected_resource_type__[cls] = resource_type
+        cls.__resource_types[resource_type] = cls
+        cls.__expected_resource_type[cls] = resource_type
 
         super().__init_subclass__(**kwargs)
 
@@ -47,7 +47,7 @@ class Resource(BaseModel):
 
         resource_type = value["resourceType"]
 
-        subclass = cls.__resource_types__.get(resource_type)
+        subclass = cls.__resource_types.get(resource_type)
         if subclass is None:
             raise TypeError(f"Unknown resource type: {resource_type}")
 
@@ -57,12 +57,12 @@ class Resource(BaseModel):
     @classmethod
     def create(cls, **kwargs: Any) -> Self:
         """Create a Resource instance with the correct resourceType."""
-        return cls(resourceType=cls.__expected_resource_type__[cls], **kwargs)
+        return cls(resourceType=cls.__expected_resource_type[cls], **kwargs)
 
     @field_validator("resource_type", mode="after")
     @classmethod
     def _validate_resource_type(cls, value: str) -> str:
-        expected_resource_type = cls.__expected_resource_type__[cls]
+        expected_resource_type = cls.__expected_resource_type[cls]
         if value != expected_resource_type:
             raise ValueError(
                 f"Resource type '{value}' does not match expected "
@@ -115,7 +115,7 @@ class Patient(Resource, resource_type="Patient"):
         """A FHIR R4 Patient Identifier utilising the NHS Number system."""
 
         def __init__(self, value: str):
-            super().__init__(value=value, system=self.__expected_system__)
+            super().__init__(value=value, system=self.__expected_system)
 
         @classmethod
         def from_nhs_number(cls, nhs_number: str) -> "Patient.PatientIdentifier":
