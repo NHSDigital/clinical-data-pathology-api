@@ -1,0 +1,20 @@
+meta {
+  name: Retrieve Observation
+  type: http
+  seq: 2
+}
+
+get {
+  url: https://int.api.service.nhs.uk/patient-data-manager/FHIR/R4/Observation/ec5e3a08-a4fe-462b-b627-d553b53a66f2
+  body: none
+  auth: inherit
+}
+
+headers {
+  X-Request-ID: 3f99b84f-361c-4ec7-a7b4-5104ed70afd5
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
