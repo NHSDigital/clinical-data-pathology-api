@@ -1,0 +1,15 @@
+meta {
+  name: Get Healthcheck status
+  type: http
+  seq: 3
+}
+
+get {
+  url: https://internal-dev.api.service.nhs.uk/pathology-laboratory-reporting/_status
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+}
