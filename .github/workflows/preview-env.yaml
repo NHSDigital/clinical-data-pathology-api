@@ -143,3 +143,18 @@ jobs:
               issue_number: context.issue.number,
               body: `Preview Lambda: \`${fn}\`\nPreview URL: ${url}`
             });
+
+      - name: Prepare lambda artifact for trivy scan
+        if: github.event.action != 'closed'
+        run: |
+          cd infrastructure/environments/preview
+          rm -rf /tmp/artifact
+          mkdir -p /tmp/artifact
+          unzip -q artifact.zip -d /tmp/artifact
+
+      - name: Trivy filesystem scan
+        if: github.event.action != 'closed'
+        uses: ./.github/actions/trivy-fs-scan
+        with:
+          filesystem-ref: /tmp/artifact
+          artifact-name: trivy-fs-scan-${{ steps.branch.outputs.safe }}
