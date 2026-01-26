@@ -131,6 +131,16 @@ jobs:
           echo "url      = ${{ steps.names.outputs.preview_url }}"
 
       # ---------- Wait on AWS tasks and notify ----------
+      - name: Get mTLS certs for testing
+        if: github.event.action != 'closed'
+        id: mtls-certs
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            /cds/pathology/dev/mtls/client1-key-secret
+            /cds/pathology/dev/mtls/client1-key-public
+          name-transformation: lowercase
+
       - name: Smoke test preview URL
         if: github.event.action != 'closed'
         id: smoke-test
