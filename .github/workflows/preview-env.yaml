@@ -155,7 +155,18 @@ jobs:
           fi
 
           # Reachability check: allow 404 (app routes might not exist yet) but fail otherwise
-          STATUS=$(curl --silent --output /tmp/preview.headers --write-out '%{http_code}' --head --max-time 30 "$PREVIEW_URL" || true)
+          printf '%s' "$_cds_pathology_dev_mtls_client1_key_secret" > /tmp/client1-key.pem
+          printf '%s' "$_cds_pathology_dev_mtls_client1_key_public" > /tmp/client1-cert.pem
+          STATUS=$(curl \
+                     --cert /tmp/client1-cert.pem \
+                     --key /tmp/client1-key.pem \
+                     --silent \
+                     --output /tmp/preview.headers \
+                     --write-out '%{http_code}' \
+                     --head \
+                     --max-time 30 "$PREVIEW_URL" || true)
+          rm -f /tmp/client1-key.pem
+          rm -f /tmp/client1-cert.pem
 
           if [ "$STATUS" = "404" ]; then
             echo "Preview responded with expected 404"
