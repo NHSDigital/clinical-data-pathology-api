@@ -83,7 +83,7 @@ runs:
           | reduce .[] as $s ({CRITICAL:0,HIGH:0,MEDIUM:0,LOW:0,UNKNOWN:0}; .[$s]+=1));
         . as $root
         | (counts) as $c
-        | 
+        |
         # ---- TOP BANNER (only if High/Critical present) ----
         (
           if (($c.CRITICAL + $c.HIGH) > 0) then
@@ -111,14 +111,14 @@ runs:
             + "\n\n</details>\n"
           end)
         ' trivy-fs-scan.json > trivy_fs_report.md
-        
+
         # Extract counts for gating/other steps
         read CRIT HIGH < <(jq -r '
           [.Results[]? | .Vulnerabilities[]? | .Severity // "UNKNOWN"]
           | reduce .[] as $s ({CRITICAL:0,HIGH:0,MEDIUM:0,LOW:0,UNKNOWN:0}; .[$s]+=1)
           | "\(.CRITICAL) \(.HIGH)"
         ' trivy-fs-scan.json)
-        
+
         echo "crit=$CRIT" >> "$GITHUB_OUTPUT"
         echo "high=$HIGH" >> "$GITHUB_OUTPUT"
 
