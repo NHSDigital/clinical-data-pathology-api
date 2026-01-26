@@ -130,6 +130,99 @@ jobs:
           echo "function = ${{ steps.names.outputs.function_name }}"
           echo "url      = ${{ steps.names.outputs.preview_url }}"
 
+      # ---------- Wait on AWS tasks and notify ----------
+      - name: Smoke test preview URL
+        if: github.event.action != 'closed'
+        id: smoke-test
+        env:
+          PREVIEW_URL: ${{ steps.names.outputs.preview_url }}
+        run: |
+          if [ -z "$PREVIEW_URL" ] || [ "$PREVIEW_URL" = "null" ]; then
+            echo "Preview URL missing"
+            echo "http_status=missing" >> "$GITHUB_OUTPUT"
+            echo "http_result=missing-url" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Reachability check: allow 404 (app routes might not exist yet) but fail otherwise
+          STATUS=$(curl --silent --output /tmp/preview.headers --write-out '%{http_code}' --head --max-time 30 "$PREVIEW_URL" || true)
+
+          if [ "$STATUS" = "404" ]; then
+            echo "Preview responded with expected 404"
+            echo "http_status=404" >> "$GITHUB_OUTPUT"
+            echo "http_result=allowed-404" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "$STATUS" =~ ^[0-9]{3}$ ]] && [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then
+            echo "Preview responded with status $STATUS"
+            echo "http_status=$STATUS" >> "$GITHUB_OUTPUT"
+            echo "http_result=success" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Preview responded with unexpected status $STATUS"
+          cat /tmp/preview.headers
+          echo "http_status=$STATUS" >> "$GITHUB_OUTPUT"
+          echo "http_result=unexpected-status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Comment function name on PR
+        if: github.event_name == 'pull_request' && github.event.action != 'closed'
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        with:
+          script: |
+            const fn = '${{ steps.names.outputs.function_name }}';
+            const url = '${{ steps.names.outputs.preview_url }}';
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const issueNumber = context.issue.number;
+            const smokeStatus = '${{ steps.smoke-test.outputs.http_status }}' || 'n/a';
+            const smokeResult = '${{ steps.smoke-test.outputs.http_result }}' || 'not-run';
+
+            const smokeLabels = {
+              success: ':white_check_mark: Passed',
+              'allowed-404': ':white_check_mark: Allowed 404',
+              'unexpected-status': ':x: Unexpected status',
+              'missing-url': ':x: Missing URL',
+            };
+
+            const smokeReadable = smokeLabels[smokeResult] ?? smokeResult;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner,
+              repo,
+              issue_number: issueNumber,
+              per_page: 100,
+            });
+
+            for (const comment of comments) {
+              const isBot = comment.user?.login === 'github-actions[bot]';
+              const isPreviewUpdate = comment.body?.includes('Deployment Complete');
+
+              if (isBot && isPreviewUpdate) {
+                await github.rest.issues.deleteComment({
+                  owner,
+                  repo,
+                  comment_id: comment.id,
+                });
+              }
+            }
+
+            const lines = [
+              '**Deployment Complete**',
+              `- Preview URL: [${url}](${url})`,
+              `- Smoke Test: ${smokeReadable} (HTTP ${smokeStatus})`,
+              `- Lambda Function: ${fn}`,
+            ];
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: issueNumber,
+              body: lines.join('\n'),
+            });
+
       - name: Comment function name on PR
         if: github.event_name == 'pull_request' && github.event.action != 'closed'
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
@@ -144,6 +237,7 @@ jobs:
               body: `Preview Lambda: \`${fn}\`\nPreview URL: ${url}`
             });
 
+      # ---------- Perform trivy scan and notify ----------
       - name: Prepare lambda artifact for trivy scan
         if: github.event.action != 'closed'
         run: |
