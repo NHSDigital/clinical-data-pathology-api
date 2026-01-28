@@ -1,7 +1,9 @@
-from typing import Annotated, Any, ClassVar, Literal, Self
+from dataclasses import dataclass
+from typing import Annotated, Any, ClassVar, Literal, Self, TypedDict
 
 from pydantic import (
     BaseModel,
+    ConfigDict,
     Field,
     SerializeAsAny,
     ValidatorFunctionWrapHandler,
@@ -9,16 +11,21 @@ from pydantic import (
     model_validator,
 )
 
-from .elements import Identifier, Meta, UUIDIdentifier
+from pathology_api.exception import ValidationError
+
+from .elements import LogicalReference, Meta, PatientIdentifier, UUIDIdentifier
 
 
 class Resource(BaseModel):
     """A FHIR R4 Resource base class."""
 
+    model_config = ConfigDict(extra="allow")
+
     # class variable to hold class mappings per resource_type
     __resource_types: ClassVar[dict[str, type["Resource"]]] = {}
     __expected_resource_type: ClassVar[dict[type["Resource"], str]] = {}
 
+    id: Annotated[str | None, Field(frozen=True)] = None
     meta: Annotated[Meta | None, Field(alias="meta", frozen=True)] = None
     resource_type: str = Field(alias="resourceType", frozen=True)
 
@@ -43,13 +50,13 @@ class Resource(BaseModel):
             return handler(value)
 
         if "resourceType" not in value or value["resourceType"] is None:
-            raise TypeError("resourceType is required for Resource validation.")
+            raise ValidationError("resourceType must be provided for each Resource.")
 
         resource_type = value["resourceType"]
 
         subclass = cls.__resource_types.get(resource_type)
         if subclass is None:
-            raise TypeError(f"Unknown resource type: {resource_type}")
+            raise ValidationError(f"Unsupported resourceType: {resource_type}")
 
         # Instantiate the subclass using the dictionary values.
         return subclass.model_validate(value)
@@ -67,14 +74,24 @@ class Resource(BaseModel):
     def _validate_resource_type(cls, value: str) -> str:
         expected_resource_type = cls.__expected_resource_type[cls]
         if value != expected_resource_type:
-            raise ValueError(
-                f"Resource type '{value}' does not match expected "
-                f"resource type '{expected_resource_type}'."
+            raise ValidationError(
+                f"Provided resourceType '{value}' does not match required "
+                f"resourceType '{expected_resource_type}'."
             )
         return value
 
 
-type BundleType = Literal["document", "transaction"]
+type BundleType = Literal[
+    "document",
+    "message",
+    "transaction",
+    "transaction-response",
+    "batch",
+    "batch-response",
+    "history",
+    "searchset",
+    "collection",
+]
 
 
 class Bundle(Resource, resource_type="Bundle"):
@@ -112,17 +129,97 @@ class Bundle(Resource, resource_type="Bundle"):
 class Patient(Resource, resource_type="Patient"):
     """A FHIR R4 Patient resource."""
 
-    class PatientIdentifier(
-        Identifier, expected_system="https://fhir.nhs.uk/Id/nhs-number"
-    ):
-        """A FHIR R4 Patient Identifier utilising the NHS Number system."""
 
-        def __init__(self, value: str):
-            super().__init__(value=value, system=self._expected_system)
+class ServiceRequest(Resource, resource_type="ServiceRequest"):
+    """A FHIR R4 ServiceRequest resource."""
 
-        @classmethod
-        def from_nhs_number(cls, nhs_number: str) -> "Patient.PatientIdentifier":
-            """Create a PatientIdentifier from an NHS number."""
-            return cls(value=nhs_number)
 
-    identifier: Annotated[PatientIdentifier, Field(frozen=True)]
+class DiagnosticReport(Resource, resource_type="DiagnosticReport"):
+    """A FHIR R4 DiagnosticReport resource."""
+
+
+class Organization(Resource, resource_type="Organization"):
+    """A FHIR R4 Organization resource."""
+
+
+class Practitioner(Resource, resource_type="Practitioner"):
+    """A FHIR R4 Practitioner resource."""
+
+
+class PractitionerRole(Resource, resource_type="PractitionerRole"):
+    """A FHIR R4 PractitionerRole resource."""
+
+
+class Observation(Resource, resource_type="Observation"):
+    """A FHIR R4 Observation resource."""
+
+
+class Specimen(Resource, resource_type="Specimen"):
+    """A FHIR R4 Specimen resource."""
+
+
+class Composition(Resource, resource_type="Composition"):
+    """A FHIR R4 Composition resource."""
+
+    subject: Annotated[
+        LogicalReference[PatientIdentifier] | None, Field(frozen=True)
+    ] = None
+
+
+class OperationOutcome(BaseModel):
+    """
+    A FHIR R4 OperationOutcome resource.
+
+    Note this class is deliberately not a subclass of Resource so that it is not
+    accepted as a valid resource for a client.
+    """
+
+    resource_type: Literal["OperationOutcome"] = Field(
+        "OperationOutcome", alias="resourceType", frozen=True
+    )
+
+    @dataclass(frozen=True)
+    class Issue(TypedDict):
+        severity: Literal["fatal", "error", "warning", "information"]
+        code: str
+        diagnostics: str | None
+
+    issue: list[Issue] = Field(frozen=True)
+
+    @classmethod
+    def create_validation_error(cls, diagnostics: str) -> Self:
+        """
+        Create an OperationOutcome with the provided diagnostic as a validation error.
+        Args:
+            diagnostics: The diagnostic message for the validation error.
+        """
+
+        return cls(
+            resourceType="OperationOutcome",
+            issue=[
+                {
+                    "severity": "error",
+                    "code": "invalid",
+                    "diagnostics": diagnostics,
+                }
+            ],
+        )
+
+    @classmethod
+    def create_server_error(cls, diagnostics: str | None = None) -> Self:
+        """
+        Create an OperationOutcome with the provided diagnostics as a server error.
+        Args:
+            diagnostics: any diagnostics to include with the server error.
+        """
+
+        return cls(
+            resourceType="OperationOutcome",
+            issue=[
+                {
+                    "severity": "fatal",
+                    "code": "exception",
+                    "diagnostics": diagnostics,
+                }
+            ],
+        )

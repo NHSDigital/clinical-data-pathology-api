@@ -1,10 +1,14 @@
 import json
 from typing import Any
 
+import pydantic
 import pytest
 from pydantic import BaseModel
 
-from .resources import Bundle, Patient, Resource
+from pathology_api.exception import ValidationError
+
+from .elements import LogicalReference, PatientIdentifier
+from .resources import Bundle, Composition, OperationOutcome, Patient, Resource
 
 
 class TestResource:
@@ -17,22 +21,24 @@ class TestResource:
         example_json = json.dumps(
             {
                 "resource": {
-                    "resourceType": "Patient",
-                    "identifier": {
-                        "system": expected_system,
-                        "value": expected_nhs_number,
+                    "resourceType": "Composition",
+                    "subject": {
+                        "identifier": {
+                            "system": expected_system,
+                            "value": expected_nhs_number,
+                        }
                     },
                 }
             }
         )
 
         created_object = self._TestContainer.model_validate_json(example_json)
-        assert isinstance(created_object.resource, Patient)
+        assert isinstance(created_object.resource, Composition)
 
-        created_patient = created_object.resource
-        assert created_patient.identifier is not None
-        assert created_patient.identifier.system == expected_system
-        assert created_patient.identifier.value == expected_nhs_number
+        created_composition = created_object.resource
+        assert created_composition.subject is not None
+        assert created_composition.subject.identifier.system == expected_system
+        assert created_composition.subject.identifier.value == expected_nhs_number
 
     def test_resource_deserialisation_unknown_resource(self) -> None:
         expected_resource_type = "UnknownResourceType"
@@ -45,8 +51,8 @@ class TestResource:
         )
 
         with pytest.raises(
-            TypeError,
-            match=f"Unknown resource type: {expected_resource_type}",
+            ValidationError,
+            match=f"Unsupported resourceType: {expected_resource_type}",
         ):
             self._TestContainer.model_validate_json(example_json)
 
@@ -66,38 +72,44 @@ class TestResource:
         example_json = json.dumps(value)
 
         with pytest.raises(
-            TypeError,
-            match="resourceType is required for Resource validation.",
+            ValidationError,
+            match="resourceType must be provided for each Resource.",
         ):
             self._TestContainer.model_validate_json(example_json)
 
     @pytest.mark.parametrize(
-        ("json", "expected_error_message"),
+        ("json", "expected_error_message", "expected_error_type"),
         [
             pytest.param(
                 json.dumps({"resourceType": "invalid", "type": "document"}),
-                "Value error, Resource type 'invalid' does not match expected "
-                "resource type 'Bundle'.",
+                "Provided resourceType 'invalid' does not match required "
+                "resourceType 'Bundle'.",
+                ValidationError,
                 id="Invalid resource type",
             ),
             pytest.param(
                 json.dumps({"resourceType": None, "type": "document"}),
                 "1 validation error for Bundle\nresourceType\n  "
                 "Input should be a valid string",
+                pydantic.ValidationError,
                 id="Input should be a valid string",
             ),
             pytest.param(
                 json.dumps({"type": "document"}),
                 "1 validation error for Bundle\nresourceType\n  Field required",
+                pydantic.ValidationError,
                 id="Missing resource type",
             ),
         ],
     )
     def test_deserialise_wrong_resource_type(
-        self, json: str, expected_error_message: str
+        self,
+        json: str,
+        expected_error_message: str,
+        expected_error_type: type[Exception],
     ) -> None:
         with pytest.raises(
-            ValueError,
+            expected_error_type,
             match=expected_error_message,
         ):
             Bundle.model_validate_json(json, strict=True)
@@ -105,11 +117,12 @@ class TestResource:
 
 class TestBundle:
     def test_create(self) -> None:
-        """Test creating a Bundle resource."""
         expected_entry = Bundle.Entry(
             fullUrl="full",
-            resource=Patient.create(
-                identifier=Patient.PatientIdentifier.from_nhs_number("nhs_number")
+            resource=Composition.create(
+                subject=LogicalReference(
+                    PatientIdentifier.from_nhs_number("nhs_number")
+                )
             ),
         )
 
@@ -123,15 +136,16 @@ class TestBundle:
         assert bundle.entries == [expected_entry]
 
     def test_create_without_entries(self) -> None:
-        """Test creating a Bundle resource without entries."""
         bundle = Bundle.empty("document")
 
         assert bundle.bundle_type == "document"
         assert bundle.identifier is None
         assert bundle.entries is None
 
-    expected_resource = Patient.create(
-        identifier=Patient.PatientIdentifier.from_nhs_number("nhs_number")
+    expected_resource = Composition.create(
+        subject=LogicalReference(
+            identifier=PatientIdentifier.from_nhs_number("nhs_number")
+        )
     )
 
     @pytest.mark.parametrize(
@@ -168,7 +182,7 @@ class TestBundle:
     ) -> None:
         bundle = Bundle.create(type="document", entry=entries)
 
-        result = bundle.find_resources(Patient)
+        result = bundle.find_resources(Composition)
         assert result == expected_results
 
     @pytest.mark.parametrize(
@@ -194,29 +208,56 @@ class TestBundle:
         ],
     )
     def test_find_resources_returns_empty_list(self, bundle: Bundle) -> None:
-        """
-        Test that find_resources returns an empty list when no matching resources exist.
-        """
         result = bundle.find_resources(Patient)
         assert result == []
 
-
-class TestPatient:
-    def test_create(self) -> None:
-        """Test creating a Patient resource."""
-        nhs_number = "1234567890"
-
-        expected_identifier = Patient.PatientIdentifier.from_nhs_number(nhs_number)
-        patient = Patient.create(identifier=expected_identifier)
-
-        assert patient.identifier == expected_identifier
+    def test_deserialise_without_type(self) -> None:
+        with pytest.raises(
+            pydantic.ValidationError,
+            match="1 validation error for Bundle\ntype\n  Field required [type=missing,"
+            "input_value={'resourceType': 'Bundle'}, input_type=dict]*",
+        ):
+            Bundle.model_validate_json('{"resourceType": "Bundle"}')
 
 
-class TestPatientIdentifier:
-    def test_create_from_nhs_number(self) -> None:
-        """Test creating a PatientIdentifier from an NHS number."""
-        nhs_number = "1234567890"
-        identifier = Patient.PatientIdentifier.from_nhs_number(nhs_number)
+class TestOperationOutcome:
+    def test_create_validation_error(self) -> None:
+        expected_diagnostics = "Invalid patient identifier format"
 
-        assert identifier.system == "https://fhir.nhs.uk/Id/nhs-number"
-        assert identifier.value == nhs_number
+        outcome = OperationOutcome.create_validation_error(expected_diagnostics)
+
+        assert outcome.resource_type == "OperationOutcome"
+        assert len(outcome.issue) == 1
+
+        issue = outcome.issue[0]
+        assert issue["severity"] == "error"
+        assert issue["code"] == "invalid"
+        assert issue["diagnostics"] == expected_diagnostics
+
+    @pytest.mark.parametrize(
+        ("diagnostics", "expected_diagnostics"),
+        [
+            pytest.param(
+                "Unexpected error",
+                "Unexpected error",
+                id="with_diagnostics",
+            ),
+            pytest.param(
+                None,
+                None,
+                id="without_diagnostics",
+            ),
+        ],
+    )
+    def test_create_server_error(
+        self, diagnostics: str | None, expected_diagnostics: str | None
+    ) -> None:
+        outcome = OperationOutcome.create_server_error(diagnostics)
+
+        assert outcome.resource_type == "OperationOutcome"
+        assert len(outcome.issue) == 1
+
+        issue = outcome.issue[0]
+        assert issue["severity"] == "fatal"
+        assert issue["code"] == "exception"
+        assert issue["diagnostics"] == expected_diagnostics
