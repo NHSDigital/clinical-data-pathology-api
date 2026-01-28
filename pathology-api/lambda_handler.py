@@ -1,38 +1,79 @@
-from typing import TypedDict
+import json
+import logging
+from functools import reduce
+from typing import Any
 
-from pathology_api.handler import User, greet
+from aws_lambda_powertools.event_handler import (
+    APIGatewayHttpResolver,
+    Response,
+)
+from aws_lambda_powertools.utilities.typing import LambdaContext
+from pathology_api.fhir.r4.resources import Bundle
+from pathology_api.handler import handle_request
+from pydantic import ValidationError
+
+_INVALID_PAYLOAD_MESSAGE = "Invalid payload provided."
+
+_logger = logging.getLogger(__name__)
+
+app = APIGatewayHttpResolver()
 
 
-class LambdaResponse[T](TypedDict):
-    """A lambda response including a body with a generic type."""
-
-    statusCode: int
-    headers: dict[str, str]
-    body: T
-
-
-def _with_default_headers[T](status_code: int, body: T) -> LambdaResponse[T]:
-    return {
-        "statusCode": status_code,
-        "headers": {"Content-Type": "application/json"},
-        "body": body,
-    }
+def _with_default_headers(status_code: int, body: str) -> Response[str]:
+    content_type = "application/fhir+json" if status_code == 200 else "text/plain"
+    return Response(
+        status_code=status_code,
+        headers={"Content-Type": content_type},
+        body=body,
+    )
 
 
-def handler(event: dict[str, str], context: dict[str, str]) -> LambdaResponse[str]:
-    print(f"Received event: {event}")
+@app.get("/_status")
+def status() -> Response[str]:
+    _logger.debug("Status check endpoint called")
+    return Response(status_code=200, body="OK", headers={"Content-Type": "text/plain"})
 
-    if "payload" not in event:
-        return _with_default_headers(status_code=400, body="Name is required")
 
-    name = event["payload"]
-    if not name:
-        return _with_default_headers(status_code=400, body="Name cannot be empty")
-    user = User(name=name)
+@app.post("/FHIR/R4/Bundle")
+def post_result() -> Response[str]:
+    _logger.debug("Post result endpoint called.")
+    try:
+        payload = app.current_event.json_body
+    except json.JSONDecodeError as err:
+        _logger.error("Error decoding JSON payload. error: %s", err)
+        return _with_default_headers(status_code=400, body=_INVALID_PAYLOAD_MESSAGE)
+    _logger.debug("Payload received: %s", payload)
+
+    if not payload:
+        _logger.error("No payload provided.")
+        return _with_default_headers(status_code=400, body="No payload provided.")
 
     try:
-        return _with_default_headers(status_code=200, body=f"{greet(user)}")
-    except ValueError:
-        return _with_default_headers(
-            status_code=404, body=f"Provided name cannot be found. name={name}"
+        bundle = Bundle.model_validate(payload, by_alias=True)
+    except ValidationError as err:
+        _logger.error(
+            "Error parsing payload. error: %s issues: %s",
+            err,
+            reduce(lambda acc, e: acc + "," + str(e), err.errors(), ""),
         )
+        return _with_default_headers(status_code=400, body=_INVALID_PAYLOAD_MESSAGE)
+    except TypeError as err:
+        _logger.error("Error parsing payload. error: %s", err)
+        return _with_default_headers(status_code=400, body=_INVALID_PAYLOAD_MESSAGE)
+
+    try:
+        response = handle_request(bundle)
+
+        return _with_default_headers(
+            status_code=200,
+            body=response.model_dump_json(by_alias=True, exclude_none=True),
+        )
+    except ValueError as err:
+        _logger.error("Error processing payload. error: %s", err)
+        return _with_default_headers(
+            status_code=400, body="Error processing provided bundle."
+        )
+
+
+def handler(data: dict[str, Any], context: LambdaContext) -> dict[str, Any]:
+    return app.resolve(data, context)

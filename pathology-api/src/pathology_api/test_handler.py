@@ -1,54 +1,129 @@
+import datetime
+
 import pytest
 
-from pathology_api.handler import User, greet
+from pathology_api.fhir.r4.elements import UUIDIdentifier
+from pathology_api.fhir.r4.resources import Bundle, Patient
+from pathology_api.handler import handle_request
 
 
-class TestUser:
-    """Test suite for the User class."""
+class TestHandleRequest:
+    """Test suite for the handle_request function."""
 
-    @pytest.mark.parametrize(
-        "name",
-        [
-            "Alice",
-            "Bob",
-            "",
-            "O'Brien",
-        ],
-    )
-    def test_user_initialization(self, name: str) -> None:
-        """Test that a User can be initialized with various names."""
-        user = User(name)
-        assert user.name == name
+    def test_handle_request(self) -> None:
+        """Test that handle_request processes a valid bundle correctly."""
+        # Arrange
+        bundle = Bundle.create(
+            type="transaction",
+            entry=[
+                Bundle.Entry(
+                    fullUrl="patient",
+                    resource=Patient.create(
+                        identifier=Patient.PatientIdentifier.from_nhs_number(
+                            "nhs_number"
+                        )
+                    ),
+                )
+            ],
+        )
 
-    def test_user_name_is_immutable(self) -> None:
-        """Test that the name property cannot be directly modified."""
-        user = User("Charlie")
-        with pytest.raises(AttributeError):
-            user.name = "David"  # type: ignore[misc]
+        # Act
+        before_call = datetime.datetime.now(tz=datetime.timezone.utc)
+        result_bundle = handle_request(bundle)
+        after_call = datetime.datetime.now(tz=datetime.timezone.utc)
 
+        # Assert
+        assert result_bundle is not None
 
-class TestGreet:
-    """Test suite for the greet function."""
+        assert result_bundle.identifier is not None
+        result_identifier = result_bundle.identifier
+        assert result_identifier.system == "https://tools.ietf.org/html/rfc4122"
 
-    @pytest.mark.parametrize(
-        ("name", "expected_greeting"),
-        [
-            ("Alice", "Hello, Alice!"),
-            ("Bob", "Hello, Bob!"),
-            ("", "Hello, !"),
-            ("O'Brien", "Hello, O'Brien!"),
-            ("Nonexistent", "Hello, Nonexistent!"),
-            ("nonexistent ", "Hello, nonexistent !"),
-        ],
-    )
-    def test_greet_with_valid_users(self, name: str, expected_greeting: str) -> None:
-        """Test that greet returns the correct greeting for various valid users."""
-        user = User(name)
-        result = greet(user)
-        assert result == expected_greeting
+        assert result_bundle.bundle_type == bundle.bundle_type
+        assert result_bundle.entries == bundle.entries
 
-    def test_greet_with_nonexistent_user_raises_value_error(self) -> None:
-        """Test that greet raises ValueError for nonexistent user."""
-        user = User("nonexistent")
-        with pytest.raises(ValueError, match="nonexistent user provided."):
-            greet(user)
+        # Verify last_updated field
+        assert result_bundle.meta is not None
+        created_meta = result_bundle.meta
+
+        assert created_meta.last_updated is not None
+        assert before_call <= created_meta.last_updated
+        assert created_meta.last_updated <= after_call
+
+        assert created_meta.version_id is None
+
+    def test_handle_request_raises_error_when_no_patient_resource(self) -> None:
+        """
+        Test that handle_request raises ValueError when bundle has no Patient resource.
+        """
+        # Arrange
+        bundle = Bundle.create(
+            type="transaction",
+            entry=[],
+        )
+
+        # Act & Assert
+        with pytest.raises(
+            ValueError,
+            match="Test Result Bundle must reference at least one Patient resource.",
+        ):
+            handle_request(bundle)
+
+    def test_handle_request_raises_error_when_multiple_patient_resources(
+        self,
+    ) -> None:
+        """
+        Test that handle_request raises ValueError when bundle has multiple Patient
+        resources.
+        """
+        # Arrange
+        patient = Patient.create(
+            identifier=Patient.PatientIdentifier.from_nhs_number("nhs_number_1")
+        )
+
+        bundle = Bundle.create(
+            type="transaction",
+            entry=[
+                Bundle.Entry(
+                    fullUrl="patient1",
+                    resource=patient,
+                ),
+                Bundle.Entry(
+                    fullUrl="patient2",
+                    resource=patient,
+                ),
+            ],
+        )
+
+        # Act & Assert
+        with pytest.raises(
+            ValueError,
+            match="Test Result Bundle must not reference more than one Patient "
+            "resource.",
+        ):
+            handle_request(bundle)
+
+    def test_handle_request_bundle_includes_identifier(
+        self,
+    ) -> None:
+        """
+        Test that handle_request raises ValueError when bundle includes identifier
+        resources.
+        """
+        # Arrange
+        patient = Patient.create(
+            identifier=Patient.PatientIdentifier.from_nhs_number("nhs_number_1")
+        )
+
+        bundle = Bundle.create(
+            identifier=UUIDIdentifier(),
+            type="transaction",
+            entry=[Bundle.Entry(fullUrl="patient1", resource=patient)],
+        )
+
+        # Act & Assert
+        with pytest.raises(
+            ValueError,
+            match="Bundle with identifier is not allowed.",
+        ):
+            handle_request(bundle)
