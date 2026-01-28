@@ -5,7 +5,7 @@ meta {
 }
 
 post {
-  url: https://int.api.service.nhs.uk/patient-data-manager/FHIR/R4/Observation
+  url: https://{{APIM_ENV}}.api.service.nhs.uk/patient-data-manager/FHIR/R4/Observation
   body: json
   auth: inherit
 }

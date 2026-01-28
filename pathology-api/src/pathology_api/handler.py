@@ -1,47 +1,48 @@
-import logging
+import uuid
 from collections.abc import Callable
 
-from pathology_api.fhir.r4.elements import Meta, UUIDIdentifier
-from pathology_api.fhir.r4.resources import Bundle, Patient
+from pathology_api.exception import ValidationError
+from pathology_api.fhir.r4.elements import Meta
+from pathology_api.fhir.r4.resources import Bundle, Composition
+from pathology_api.logging import get_logger
 
-_logger = logging.getLogger(__name__)
+_logger = get_logger(__name__)
 
 
-def _ensure_test_result_references_patient(bundle: Bundle) -> None:
-    patient_references = [
-        patient.identifier for patient in bundle.find_resources(t=Patient)
-    ]
-    if not patient_references:
-        raise ValueError(
-            "Test Result Bundle must reference at least one Patient resource."
-        )
+def _validate_composition(bundle: Bundle) -> None:
+    compositions = bundle.find_resources(t=Composition)
+    if len(compositions) != 1:
+        raise ValidationError("Document must include a single Composition resource")
 
-    _logger.debug("Bundle.entries %s", bundle.entries)
-    _logger.debug("Patient references found: %s", patient_references)
+    subject = compositions[0].subject
+    if subject is None:
+        raise ValidationError("Composition does not define a valid subject identifier")
 
-    if len(patient_references) > 1:
-        raise ValueError(
-            "Test Result Bundle must not reference more than one Patient resource."
-        )
+
+def _validate_bundle(bundle: Bundle) -> None:
+    if bundle.id is not None:
+        raise ValidationError("Bundles cannot be defined with an existing ID")
+
+    if bundle.bundle_type != "document":
+        raise ValidationError("Resource must be a bundle of type 'document'")
 
 
 type ValidationFunction = Callable[[Bundle], None]
 _validation_functions: list[ValidationFunction] = [
-    _ensure_test_result_references_patient,
+    _validate_composition,
+    _validate_bundle,
 ]
 
 
 def handle_request(bundle: Bundle) -> Bundle:
-    if bundle.identifier:
-        raise ValueError("Bundle with identifier is not allowed.")
-
     for validate_function in _validation_functions:
         validate_function(bundle)
 
     _logger.debug("Bundle entries: %s", bundle.entries)
     return_bundle = Bundle.create(
+        id=str(uuid.uuid4()),
         meta=Meta.with_last_updated(),
-        identifier=UUIDIdentifier(),
+        identifier=bundle.identifier,
         type=bundle.bundle_type,
         entry=bundle.entries,
     )

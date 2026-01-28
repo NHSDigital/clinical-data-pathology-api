@@ -1,7 +1,8 @@
 """Step definitions for pathology API bundle endpoint feature."""
 
 import requests
-from pathology_api.fhir.r4.resources import Bundle, BundleType, Patient
+from pathology_api.fhir.r4.elements import LogicalReference, PatientIdentifier
+from pathology_api.fhir.r4.resources import Bundle, BundleType, Composition
 from pytest_bdd import given, parsers, then, when
 
 from tests.acceptance.conftest import ResponseContext
@@ -36,10 +37,10 @@ def step_send_valid_bundle(client: Client, response_context: ResponseContext) ->
             type="document",
             entry=[
                 Bundle.Entry(
-                    fullUrl="patient",
-                    resource=Patient.create(
-                        identifier=Patient.PatientIdentifier.from_nhs_number(
-                            "nhs_number"
+                    fullUrl="composition",
+                    resource=Composition.create(
+                        subject=LogicalReference(
+                            PatientIdentifier.from_nhs_number("nhs_number")
                         )
                     ),
                 )
@@ -121,9 +122,7 @@ def step_check_response_contains_valid_bundle(
         f"Expected bundle type '{expected_type}', got: '{bundle.bundle_type}'"
     )
 
-    assert bundle.identifier is not None, "Bundle identifier is missing."
-    assert bundle.identifier.system == "https://tools.ietf.org/html/rfc4122"
-    assert bundle.identifier.value is not None, "Bundle identifier value is missing."
+    assert bundle.id is not None, "Bundle ID is missing."
 
 def _validate_response_set(response_context: ResponseContext) -> requests.Response:
     assert response_context.response is not None, "Response has not been set."
