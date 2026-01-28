@@ -69,3 +69,8 @@ class UUIDIdentifier(Identifier, expected_system="https://tools.ietf.org/html/rf
             value=str(value or uuid.uuid4()),
             system=self._expected_system,
         )
+
+
+@dataclass(frozen=True)
+class LogicalReference[T: Identifier]:
+    identifier: T
