@@ -56,7 +56,10 @@ class Resource(BaseModel):
 
     @classmethod
     def create(cls, **kwargs: Any) -> Self:
-        """Create a Resource instance with the correct resourceType."""
+        """
+        Create a Resource instance with the correct resourceType.
+        Note any unknown arguments provided via this method will only error at runtime.
+        """
         return cls(resourceType=cls.__expected_resource_type[cls], **kwargs)
 
     @field_validator("resource_type", mode="after")
