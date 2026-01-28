@@ -2,8 +2,12 @@ import datetime
 
 import pytest
 
-from pathology_api.fhir.r4.elements import UUIDIdentifier
-from pathology_api.fhir.r4.resources import Bundle, Patient
+from pathology_api.exception import ValidationError
+from pathology_api.fhir.r4.elements import (
+    LogicalReference,
+    PatientIdentifier,
+)
+from pathology_api.fhir.r4.resources import Bundle, Composition
 from pathology_api.handler import handle_request
 
 
@@ -11,30 +15,26 @@ class TestHandleRequest:
     def test_handle_request(self) -> None:
         # Arrange
         bundle = Bundle.create(
-            type="transaction",
+            type="document",
             entry=[
                 Bundle.Entry(
                     fullUrl="patient",
-                    resource=Patient.create(
-                        identifier=Patient.PatientIdentifier.from_nhs_number(
-                            "nhs_number"
+                    resource=Composition.create(
+                        subject=LogicalReference(
+                            PatientIdentifier.from_nhs_number("nhs_number")
                         )
                     ),
                 )
             ],
         )
 
-        # Act
         before_call = datetime.datetime.now(tz=datetime.timezone.utc)
         result_bundle = handle_request(bundle)
         after_call = datetime.datetime.now(tz=datetime.timezone.utc)
 
-        # Assert
         assert result_bundle is not None
 
-        assert result_bundle.identifier is not None
-        result_identifier = result_bundle.identifier
-        assert result_identifier.system == "https://tools.ietf.org/html/rfc4122"
+        assert result_bundle.id is not None
 
         assert result_bundle.bundle_type == bundle.bundle_type
         assert result_bundle.entries == bundle.entries
@@ -49,61 +49,107 @@ class TestHandleRequest:
 
         assert created_meta.version_id is None
 
-    def test_handle_request_raises_error_when_no_patient_resource(self) -> None:
+    def test_handle_request_raises_error_when_no_composition_resource(self) -> None:
         bundle = Bundle.create(
-            type="transaction",
+            type="document",
             entry=[],
         )
 
         with pytest.raises(
-            ValueError,
-            match="Test Result Bundle must reference at least one Patient resource.",
+            ValidationError,
+            match="Document must include a single Composition resource",
         ):
             handle_request(bundle)
 
-    def test_handle_request_raises_error_when_multiple_patient_resources(
+    def test_handle_request_raises_error_when_multiple_composition_resources(
         self,
     ) -> None:
-        patient = Patient.create(
-            identifier=Patient.PatientIdentifier.from_nhs_number("nhs_number_1")
+        composition = Composition.create(
+            subject=LogicalReference(PatientIdentifier.from_nhs_number("nhs_number_1"))
         )
 
         bundle = Bundle.create(
-            type="transaction",
+            type="document",
             entry=[
                 Bundle.Entry(
-                    fullUrl="patient1",
-                    resource=patient,
+                    fullUrl="composition1",
+                    resource=composition,
                 ),
                 Bundle.Entry(
-                    fullUrl="patient2",
-                    resource=patient,
+                    fullUrl="composition2",
+                    resource=composition,
                 ),
             ],
         )
 
         with pytest.raises(
-            ValueError,
-            match="Test Result Bundle must not reference more than one Patient "
-            "resource.",
+            ValidationError,
+            match="Document must include a single Composition resource",
         ):
             handle_request(bundle)
 
-    def test_handle_request_raises_error_when_bundle_includes_identifier(
-        self,
+    @pytest.mark.parametrize(
+        ("composition", "expected_error_message"),
+        [
+            pytest.param(
+                Composition.create(subject=None),
+                "Composition does not define a valid subject identifier",
+                id="No subject",
+            )
+        ],
+    )
+    def test_handle_request_raises_error_when_invalid_composition(
+        self, composition: Composition, expected_error_message: str
     ) -> None:
-        patient = Patient.create(
-            identifier=Patient.PatientIdentifier.from_nhs_number("nhs_number_1")
-        )
-
         bundle = Bundle.create(
-            identifier=UUIDIdentifier(),
-            type="transaction",
-            entry=[Bundle.Entry(fullUrl="patient1", resource=patient)],
+            type="document",
+            entry=[
+                Bundle.Entry(
+                    fullUrl="composition",
+                    resource=composition,
+                )
+            ],
         )
 
         with pytest.raises(
-            ValueError,
-            match="Bundle with identifier is not allowed.",
+            ValidationError,
+            match=expected_error_message,
+        ):
+            handle_request(bundle)
+
+    def test_handle_request_raises_error_when_bundle_includes_id(
+        self,
+    ) -> None:
+        composition = Composition.create(
+            subject=LogicalReference(PatientIdentifier.from_nhs_number("nhs_number_1"))
+        )
+
+        bundle = Bundle.create(
+            id="id",
+            type="document",
+            entry=[Bundle.Entry(fullUrl="composition1", resource=composition)],
+        )
+
+        with pytest.raises(
+            ValidationError,
+            match="Bundles cannot be defined with an existing ID",
+        ):
+            handle_request(bundle)
+
+    def test_handle_request_raises_error_when_bundle_not_document_type(
+        self,
+    ) -> None:
+        composition = Composition.create(
+            subject=LogicalReference(PatientIdentifier.from_nhs_number("nhs_number_1"))
+        )
+
+        bundle = Bundle.create(
+            type="collection",
+            entry=[Bundle.Entry(fullUrl="composition1", resource=composition)],
+        )
+
+        with pytest.raises(
+            ValidationError,
+            match="Resource must be a bundle of type 'document'",
         ):
             handle_request(bundle)

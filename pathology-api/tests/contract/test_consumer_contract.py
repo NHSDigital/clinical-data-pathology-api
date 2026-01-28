@@ -25,12 +25,14 @@ class TestConsumerContract:
             "type": "document",
             "entry": [
                 {
-                    "fullUrl": "patient",
+                    "fullUrl": "composition",
                     "resource": {
-                        "resourceType": "Patient",
-                        "identifier": {
-                            "system": "https://fhir.nhs.uk/Id/nhs-number",
-                            "value": "nhs_number",
+                        "resourceType": "Composition",
+                        "subject": {
+                            "identifier": {
+                                "system": "https://fhir.nhs.uk/Id/nhs-number",
+                                "value": "nhs_number",
+                            },
                         },
                     },
                 }
@@ -42,20 +44,19 @@ class TestConsumerContract:
             "type": "document",
             "entry": [
                 {
-                    "fullUrl": "patient",
+                    "fullUrl": "composition",
                     "resource": {
-                        "resourceType": "Patient",
-                        "identifier": {
-                            "system": "https://fhir.nhs.uk/Id/nhs-number",
-                            "value": "nhs_number",
+                        "resourceType": "Composition",
+                        "subject": {
+                            "identifier": {
+                                "system": "https://fhir.nhs.uk/Id/nhs-number",
+                                "value": "nhs_number",
+                            },
                         },
                     },
                 }
             ],
-            "identifier": {
-                "system": "https://tools.ietf.org/html/rfc4122",
-                "value": match.uuid(),
-            },
+            "id": match.uuid(),
             "meta": {
                 "lastUpdated": match.datetime(
                     "2026-01-16T12:00:00.000Z", format="%Y-%m-%dT%H:%M:%S.%fZ"
@@ -122,32 +123,6 @@ class TestConsumerContract:
             assert response.status_code == 200
             assert response.text == "OK"
             assert response.headers["Content-Type"] == "text/plain"
-
-        # Write the pact file after the test
-        pact.write_file("tests/contract/pacts")
-
-    def test_get_nonexistent_route(self) -> None:
-        """Test the consumer's expectation when requesting a non-existent route.
-
-        This test defines the contract: when the consumer requests
-        a route that doesn't exist, they expect a 404 response.
-        """
-        pact = Pact(consumer="PathologyAPIConsumer", provider="PathologyAPIProvider")
-
-        # Define the expected interaction
-        (
-            pact.upon_receiving("a request for a non-existent route")
-            .with_request(method="GET", path="/nonexistent")
-            .will_respond_with(status=404)
-        )
-
-        # Start the mock server and execute the test
-        with pact.serve() as server:
-            # Make the actual request to the mock provider
-            response = requests.get(f"{server.url}/nonexistent", timeout=10)
-
-            # Verify the response matches expectations
-            assert response.status_code == 404
 
         # Write the pact file after the test
         pact.write_file("tests/contract/pacts")

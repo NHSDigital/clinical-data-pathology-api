@@ -8,10 +8,6 @@ info:
 servers:
   - url: http://localhost:5002
     description: Local development server
-components:
-  securitySchemes:
-    app-level3:
-      $ref: https://proxygen.ptl.api.platform.nhs.uk/components/securitySchemes/app-level3
 paths:
   /FHIR/R4/Bundle:
     post:
@@ -40,14 +36,15 @@ paths:
                   type: string
                   enum:
                     - document
-                    - transaction
                   description: The type of the bundle
                   example: document
                 entry:
                   type: array
-                  description: Entries in the bundle
-                  minItems: 1
-                  maxItems: 1
+                  description: |
+                    Entries that form a Test Result. Any included entries should comply with the [Pathology FHIR Implementation Guide|https://simplifier.net/guide/pathology-fhir-implementation-guide/Home?version=0.2.0], though the resources listed below are additionally required by the Pathology API:
+                    | Resource Type | Required Fields |
+                    |---------------|-----------------|
+                    | Composition   | - `subject` - Required to identify the Patient a given Test Result is for. The Subject should include an `identifier` referencing the `https://fhir.nhs.uk/Id/nhs-number` System value. |
                   items:
                     type: object
                     required:
@@ -57,100 +54,162 @@ paths:
                       fullUrl:
                         type: string
                         description: URI for resource
-                        example: "patient"
+                        example: "composition"
                       resource:
-                        type: object
-                        required:
-                          - resourceType
-                          - identifier
-                        properties:
-                          resourceType:
-                            type: string
-                            description: Type of FHIR resource (Always "Patient")
-                            enum:
-                              - Patient
-                            example: Patient
-                          identifier:
-                            type: object
+                        anyOf:
+                          - $ref: "#/components/schemas/CompositionResource"
+                          - type: object
                             required:
-                              - system
-                              - value
+                              - resourceType
                             properties:
-                              system:
+                              resourceType:
                                 type: string
+                                description: Type of FHIR resource (e.g. "Patient", "Observation", etc.)
                                 enum:
-                                  - "https://fhir.nhs.uk/Id/nhs-number"
-                                example: "https://fhir.nhs.uk/Id/nhs-number"
-                              value:
-                                type: string
-                                example: "9999999999"
-
+                                  - Patient
+                                  - Observation
+                                  - DiagnosticReport
+                                  - Specimen
+                                  - ServiceRequest
+                                  - Practitioner
+                                  - PractitionerRole
+                                  - Organization
+                                example: Patient
       responses:
         '200':
           description: Successful response
           content:
             application/fhir+json:
               schema:
-                schema:
-              type: object
-              required:
-                - resourceType
-                - type
-              properties:
-                resourceType:
-                  type: string
-                  enum:
-                    - Bundle
-                  description: FHIR resource type (always "Bundle")
-                meta:
-                  type: object
-                  description: Metadata about the resource
-                  nullable: true
-                type:
-                  type: string
-                  enum:
-                    - document
-                    - transaction
-                  description: The type of the bundle
-                identifier:
-                  type: object
-                  nullable: true
-                  description: Persistent identifier for the bundle (UUID)
-                  properties:
-                    system:
-                      type: string
-                      format: uri
-                    value:
-                      type: string
-                      format: uuid
-                entry:
-                  type: array
-                  nullable: true
-                  description: Entries in the bundle
-                  items:
+                type: object
+                required:
+                  - resourceType
+                  - type
+                properties:
+                  resourceType:
+                    type: string
+                    enum:
+                      - Bundle
+                    description: FHIR resource type (always "Bundle")
+                  meta:
                     type: object
-                    required:
-                      - fullUrl
-                      - resource
+                    description: Metadata about the resource
+                    nullable: true
+                  type:
+                    type: string
+                    enum:
+                      - document
+                      - transaction
+                    description: The type of the bundle
+                  identifier:
+                    type: object
+                    nullable: true
+                    description: Persistent identifier for the bundle (UUID)
                     properties:
-                      fullUrl:
+                      system:
                         type: string
-                        description: URI for resource
-                      resource:
-                        type: object
-                        required:
-                          - resourceType
-                        description: The Patient a test result is for
-                        properties:
-                          resourceType:
-                            type: string
-                            description: Type of FHIR resource (always "Patient")
-                            enum:
-                              - Patient
-                            example: Patient
+                        format: uri
+                      value:
+                        type: string
+                        format: uuid
+                  entry:
+                    type: array
+                    nullable: true
+                    description: Entries in the bundle
+                    items:
+                      type: object
+                      required:
+                        - fullUrl
+                        - resource
+                      properties:
+                        fullUrl:
+                          type: string
+                          description: URI for resource
+                        resource:
+                          type: object
+                          required:
+                            - resourceType
         '400':
           description: Invalid request
           content:
-            text/plain:
+            application/fhir+json:
               schema:
+                $ref: "#/components/schemas/OperationOutcome"
+        '500':
+          description: Unexpected internal error
+          content:
+            application/fhir+json:
+              schema:
+                $ref: "#/components/schemas/OperationOutcome"
+
+components:
+  securitySchemes:
+      app-level3:
+        $ref: https://proxygen.ptl.api.platform.nhs.uk/components/securitySchemes/app-level3
+  schemas:
+    CompositionResource:
+      type: object
+      required:
+        - resourceType
+        - subject
+      properties:
+        resourceType:
+          type: string
+          description: Type of FHIR resource (Always "Composition")
+          enum:
+            - Composition
+          example: Composition
+        subject:
+          type: object
+          required:
+            - identifier
+          properties:
+            identifier:
+              type: object
+              required:
+                - system
+                - value
+              properties:
+                system:
+                  type: string
+                  enum:
+                    - "https://fhir.nhs.uk/Id/nhs-number"
+                  example: "https://fhir.nhs.uk/Id/nhs-number"
+                value:
+                  type: string
+                  example: "9999999999"
+    OperationOutcome:
+      type: object
+      required:
+        - resourceType
+        - issue
+      properties:
+        resourceType:
+          type: string
+          enum:
+            - OperationOutcome
+          example: OperationOutcome
+        issue:
+          type: array
+          items:
+            type: object
+            required:
+              - severity
+              - code
+              - diagnostics
+            properties:
+              severity:
+                type: string
+                enum:
+                  - fatal
+                  - error
+                example: error
+              code:
+                type: string
+                enum:
+                  - invalid
+                  - not-found
+                  - exception
+                example: invalid
+              diagnostics:
                 type: string
