@@ -9,7 +9,7 @@ from pydantic import (
     model_validator,
 )
 
-from .elements import Identifier, Meta, UUIDIdentifier
+from .elements import Identifier, LogicalReference, Meta, UUIDIdentifier
 
 
 class Resource(BaseModel):
@@ -126,3 +126,9 @@ class Patient(Resource, resource_type="Patient"):
             return cls(value=nhs_number)
 
     identifier: Annotated[PatientIdentifier, Field(frozen=True)]
+
+
+class Composition(Resource, resource_type="Composition"):
+    """A FHIR R4 Composition resource."""
+
+    subject: Annotated[LogicalReference[Patient.PatientIdentifier], Field(frozen=True)]
