@@ -2,7 +2,7 @@ import logging
 from collections.abc import Callable
 
 from pathology_api.fhir.r4.elements import Meta, UUIDIdentifier
-from pathology_api.fhir.r4.resources import Bundle, Patient
+from pathology_api.fhir.r4.resources import Bundle, Composition, Patient
 
 _logger = logging.getLogger(__name__)
 
@@ -25,9 +25,19 @@ def _ensure_test_result_references_patient(bundle: Bundle) -> None:
         )
 
 
+def _ensure_bundle_composition(bundle: Bundle) -> None:
+    compositions = bundle.find_resources(t=Composition)
+    if len(compositions) != 1:
+        raise ValueError("Bundle must contain exactly one Composition resource.")
+
+    composition = compositions[0]
+    _logger.debug("Composition provided: %s", composition)
+
+
 type ValidationFunction = Callable[[Bundle], None]
 _validation_functions: list[ValidationFunction] = [
     _ensure_test_result_references_patient,
+    _ensure_bundle_composition,
 ]
 
 
