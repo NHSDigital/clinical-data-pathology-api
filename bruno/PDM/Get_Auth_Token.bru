@@ -1,0 +1,72 @@
+meta {
+  name: Get Auth Token
+  type: http
+  seq: 2
+}
+
+post {
+  url: https://int.api.service.nhs.uk/oauth2/token
+  body: formUrlEncoded
+  auth: none
+}
+
+body:form-urlencoded {
+  grant_type: client_credentials
+  client_assertion_type: urn:ietf:params:oauth:client-assertion-type:jwt-bearer
+}
+
+script:pre-request {
+  const jwt = require("jsonwebtoken");
+  const fs = require("fs");
+  const crypto = require("crypto");
+
+  // Read env vars
+  const secret = bru.getEnvVar("JWT_SECRET");
+  const privateKeyPath = bru.getEnvVar("PRIVATE_KEY_PATH");
+
+  // Enviroment variables check
+  if (!secret) {
+    throw new Error("JWT_SECRET environment variable is missing.");
+  }
+  if (!privateKeyPath) {
+    throw new Error("PRIVATE_KEY_PATH environment variable is missing.");
+  }
+
+  const privateKey = fs.readFileSync(privateKeyPath)
+
+  const payload = {
+    sub: secret,
+    iss: secret,
+    jti: crypto.randomUUID(),
+    aud: "https://int.api.service.nhs.uk/oauth2/token",
+    exp: (Date.now()/1000) + 300
+  };
+
+  const options = {
+    algorithm:'RS512',
+    header: {kid: "INT-1"}
+  }
+
+
+  // Sign token
+  const token = jwt.sign(payload, privateKey, options);
+
+
+  let new_body = req.getBody();
+  new_body.push({name: "client_assertion", value:token})
+
+  req.setBody(new_body)
+
+
+  // For debugging: see the generated token in the console
+  // console.log("Generated JWT:", token);
+}
+
+script:post-response {
+  bru.setEnvVar("auth_token", res.getBody().access_token)
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

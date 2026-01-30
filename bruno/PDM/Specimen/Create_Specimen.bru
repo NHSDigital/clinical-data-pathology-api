@@ -1,0 +1,59 @@
+meta {
+  name: Create a Specimen
+  type: http
+  seq: 2
+}
+
+post {
+  url: https://int.api.service.nhs.uk/patient-data-manager/FHIR/R4/Specimen
+  body: json
+  auth: inherit
+}
+
+headers {
+  X-Request-ID: bc3baa9e-75f6-4003-ae83-d1670aefc207
+}
+
+body:json {
+  {
+      "resourceType": "Specimen",
+      "id": "bab0eaec-1ec5-4598-b660-90bb38a1030d",
+      "meta": {
+          "profile": [
+              "https://fhir.hl7.org.uk/StructureDefinition/UKCore-Specimen"
+          ]
+      },
+      "identifier": [
+          {
+              "system": "http://B82033-pickeringmedicalpractice.com/specimen",
+              "value": "SPC-REQ-20220129-000362"
+          }
+      ],
+      "status": "available",
+      "type": {
+          "coding": [
+              {
+                  "system": "http://snomed.info/sct",
+                  "code": "122555007",
+                  "display": "Venous blood specimen"
+              }
+          ]
+      },
+      "subject": {
+            "reference": "urn:uuid:45d437b5-52b9-42a6-aafd-2bbe967f00d8",
+            "display": "WELSH, Joel",
+            "identifier": {
+              "system": "https://fhir.nhs.uk/Id/nhs-number",
+              "value": "9727710638"
+            }
+          },
+      "collection": {
+          "collectedDateTime": "2022-01-29T10:18:00+00:00"
+      }
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

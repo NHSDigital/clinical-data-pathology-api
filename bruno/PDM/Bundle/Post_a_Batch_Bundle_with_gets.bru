@@ -1,0 +1,36 @@
+meta {
+  name: Post a Batch Bundle with gets
+  type: http
+  seq: 4
+}
+
+post {
+  url: https://int.api.service.nhs.uk/patient-data-manager/FHIR/R4/
+  body: json
+  auth: inherit
+}
+
+headers {
+  X-Request-ID: bf95293b-13d3-46a4-abe0-f64f7ed9adfd
+  Content-Type: application/fhir+json
+}
+
+body:json {
+  {
+    "resourceType": "Bundle",
+    "type": "transaction",
+    "entry": [
+      {
+        "request": {
+          "method": "GET",
+          "url": "Observation/b9d8d29f-ced1-3d02-b55b-3c01f24c51fd"
+        }
+      }
+    ]
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
