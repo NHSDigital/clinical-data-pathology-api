@@ -7,4 +7,8 @@ runs:
       working-directory: "pathology-api"
       shell: bash
       run: |
-        proxygen instance deploy internal-dev "pathology-laboratory-reporting-${{ github.event.pull_request.number }}" openapi.yaml --no-confirm
+        echo "Current directory: $(pwd)"
+        echo "Looking for openapi.yaml..."
+        ls -la openapi.yaml
+        echo "Deploying proxy..."
+        proxygen instance deploy internal-dev "pathology-laboratory-reporting-${{ inputs.pr-number }}" openapi.yaml --no-confirm

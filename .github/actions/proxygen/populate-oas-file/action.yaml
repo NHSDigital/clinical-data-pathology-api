@@ -19,6 +19,12 @@ runs:
       working-directory: "pathology-api"
       shell: bash
       run: |
+        echo "Current directory: $(pwd)"
+        echo "Copying template..."
         cp openapi.template.yaml openapi.yaml
+        echo "Injecting preview URL: ${{ inputs.preview-url }}"
         yq eval '.x-nhsd-apim.target.url = "${{ inputs.preview-url }}"' -i openapi.yaml
+        echo "Injecting MTLS secret..."
         yq eval '.x-nhsd-apim.target.security.secret = "${{ inputs.mtls-secret-key }}"' -i openapi.yaml
+        echo "openapi.yaml created successfully at $(pwd)/openapi.yaml"
+        ls -la openapi.yaml
