@@ -52,13 +52,18 @@ jobs:
 
       - name: Select AWS role inputs
         id: role-select
+        env:
+          DEPENDABOT_AWS_ROLE_ARN: ${{ secrets.DEPENDABOT_AWS_ROLE_ARN }}
+          DEPENDABOT_LAMBDA_ROLE_ARN: ${{ secrets.DEPENDABOT_LAMBDA_ROLE_ARN }}
+          AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+          LAMBDA_ROLE_ARN: ${{ secrets.LAMBDA_ROLE_ARN }}
         run: |
           if [ "${{ github.actor }}" = "dependabot[bot]" ]; then
-            echo "aws_role=${{ secrets.DEPENDABOT_AWS_ROLE_ARN }}" >> "$GITHUB_OUTPUT"
-            echo "lambda_role=${{ secrets.DEPENDABOT_LAMBDA_ROLE_ARN }}" >> "$GITHUB_OUTPUT"
+            echo "aws_role=$DEPENDABOT_AWS_ROLE_ARN" >> "$GITHUB_OUTPUT"
+            echo "lambda_role=$DEPENDABOT_LAMBDA_ROLE_ARN" >> "$GITHUB_OUTPUT"
           else
-            echo "aws_role=${{ secrets.AWS_ROLE_ARN }}" >> "$GITHUB_OUTPUT"
-            echo "lambda_role=${{ secrets.LAMBDA_ROLE_ARN }}" >> "$GITHUB_OUTPUT"
+            echo "aws_role=$AWS_ROLE_ARN" >> "$GITHUB_OUTPUT"
+            echo "lambda_role=$LAMBDA_ROLE_ARN" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Configure AWS credentials (OIDC)
@@ -69,8 +74,10 @@ jobs:
 
       - name: Sanitize branch name
         id: branch
+        env:
+          RAW_BRANCH_NAME: "${{ github.head_ref }}"
         run: |
-          branch="${{ github.head_ref }}"
+          branch=$RAW_BRANCH_NAME
           if [ -z "$branch" ]; then branch="${{ github.ref_name }}"; fi
           safe=$(echo "$branch" | sed -E 's/[^a-zA-Z0-9._-]+/-/g' | tr '[:upper:]' '[:lower:]')
           echo "branch=$branch" >> $GITHUB_OUTPUT
