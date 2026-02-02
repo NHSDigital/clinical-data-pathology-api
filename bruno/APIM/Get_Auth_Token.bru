@@ -1,11 +1,11 @@
 meta {
   name: Get Auth Token
   type: http
-  seq: 2
+  seq: 1
 }
 
 post {
-  url: https://int.api.service.nhs.uk/oauth2/token
+  url: https://internal-dev.api.service.nhs.uk/oauth2/token
   body: formUrlEncoded
   auth: none
 }
@@ -17,7 +17,7 @@ body:form-urlencoded {
 
 script:pre-request {
   const { generateAuthToken } = require("../common/auth-token");
-  generateAuthToken(bru, req, "https://int.api.service.nhs.uk/oauth2/token", "INT-1");
+  generateAuthToken(bru, req, "https://internal-dev.api.service.nhs.uk/oauth2/token", "kid-1");
 }
 
 script:post-response {
