@@ -1,16 +1,22 @@
 openapi: 3.0.3
 info:
-  title: pathology API
-  description: Clinical Data pathology API
+  title: Pathology and Laboratory Medicine Reporting - FHIR API
+  description: Clinical Data Pathology API
   version: 0.1.0
   contact:
     name: API Support
 servers:
   - url: http://localhost:5002
     description: Local development server
+components:
+  securitySchemes:
+    app-level3:
+      $ref: https://proxygen.ptl.api.platform.nhs.uk/components/securitySchemes/app-level3
 paths:
   /FHIR/R4/Bundle:
     post:
+      security:
+      - app-level3: []
       summary: Provide a new test result
       description: Provide a new test result to the pathology API
       operationId: postBundle
@@ -144,6 +150,12 @@ paths:
                             example: Patient
         '400':
           description: Invalid request
+          content:
+            text/plain:
+              schema:
+                type: string
+        '404':
+          description: Content not found
           content:
             text/plain:
               schema:
