@@ -124,6 +124,7 @@ jobs:
         with:
           mtls-secret-key: ${{ secrets.MTLS_SECRET_KEY }}
           preview-url: ${{ steps.names.outputs.preview_url }}
+          pr-number: ${{ github.event.pull_request.number }}
 
       - name: Delete preview Lambda (on PR closed)
         if: github.event.action == 'closed'

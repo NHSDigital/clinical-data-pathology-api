@@ -1,5 +1,9 @@
 name: "Deploy Proxy"
 description: "Deploy proxy to API management platform"
+inputs:
+  pr-number:
+    description: "Pull request number"
+    required: true
 runs:
   using: "composite"
   steps:
@@ -7,4 +11,26 @@ runs:
       working-directory: "pathology-api"
       shell: bash
       run: |
-        proxygen instance deploy internal-dev "pathology-laboratory-reporting-${{ github.event.pull_request.number }}" openapi.yaml --no-confirm
+        echo "Current directory: $(pwd)"
+        echo "Checking for openapi.yaml..."
+        if [ -f openapi.yaml ]; then
+          echo "✓ openapi.yaml found"
+          ls -la openapi.yaml
+        else
+          echo "✗ openapi.yaml NOT found"
+          exit 1
+        fi
+
+        echo "Checking proxygen configuration..."
+        ls -la $HOME/.proxygen/ || echo "Warning: No .proxygen directory found"
+
+        echo "Deploying proxy: pathology-laboratory-reporting-${{ inputs.pr-number }}"
+        echo "Environment: internal-dev"
+
+        set -x
+        proxygen instance deploy internal-dev "pathology-laboratory-reporting-${{ inputs.pr-number }}" openapi.yaml --no-confirm
+        EXIT_CODE=$?
+        set +x
+
+        echo "Deployment exit code: $EXIT_CODE"
+        exit $EXIT_CODE

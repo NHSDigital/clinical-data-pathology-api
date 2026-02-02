@@ -7,6 +7,9 @@ inputs:
   preview-url:
     description: "Preview URL for the deployed Lambda"
     required: true
+  pr-number:
+    description: "Pull request number"
+    required: true
 runs:
   using: "composite"
   steps:
@@ -21,3 +24,5 @@ runs:
       uses: ./.github/actions/proxygen/configure-proxygen
     - name: "Deploy preview API proxy"
       uses: ./.github/actions/proxygen/deploy-proxy
+      with:
+        pr-number: ${{ inputs.pr-number }}
