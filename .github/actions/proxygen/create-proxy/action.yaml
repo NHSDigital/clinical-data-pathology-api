@@ -1,0 +1,23 @@
+name: "Create proxy"
+description: "Create proxy"
+inputs:
+  mtls-secret-key:
+    description: "MTLS secret key for API proxy"
+    required: true
+  preview-url:
+    description: "Preview URL for the deployed Lambda"
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: "Install Proxygen CLI"
+      uses: ./.github/actions/proxygen/install-proxygen
+    - name: "Populate OAS file"
+      uses: ./.github/actions/proxygen/populate-oas-file
+      with:
+        mtls-secret-key: ${{ inputs.mtls-secret-key }}
+        preview-url: ${{ inputs.preview-url }}
+    - name: "Configure the Proxygen credentials and settings"
+      uses: ./.github/actions/proxygen/configure-proxygen
+    - name: "Deploy preview API proxy"
+      uses: ./.github/actions/proxygen/deploy-proxy

@@ -118,6 +118,13 @@ jobs:
             wait_for_lambda_ready
           fi
 
+      - name: Create and Deploy PR proxy
+        if: github.event.action != 'closed'
+        uses: ./.github/actions/proxygen/create-proxy
+        with:
+          mtls-secret-key: ${{ secrets.MTLS_SECRET_KEY }}
+          preview-url: ${{ steps.names.outputs.preview_url }}
+
       - name: Delete preview Lambda (on PR closed)
         if: github.event.action == 'closed'
         run: |

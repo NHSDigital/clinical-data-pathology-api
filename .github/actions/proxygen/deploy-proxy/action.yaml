@@ -1,0 +1,10 @@
+name: "Deploy Proxy"
+description: "Deploy proxy to API management platform"
+runs:
+  using: "composite"
+  steps:
+    - name: "Deploy Proxy"
+      working-directory: "pathology-api"
+      shell: bash
+      run: |
+        proxygen instance deploy internal-dev "pathology-laboratory-reporting-${{ github.event.pull_request.number }}" openapi.yaml --no-confirm

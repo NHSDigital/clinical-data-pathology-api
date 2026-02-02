@@ -163,7 +163,7 @@ x-nhsd-apim:
   target:
     type: external
     healthcheck: /_status
-    url: https://%url-section%.endpoints.pathology-laboratory-reporting.national.nhs.uk
+    url: <url>
     security:
       type: mtls
-      secret: ~~mtls_secret_name~~
+      secret: <mtls_secret_name>

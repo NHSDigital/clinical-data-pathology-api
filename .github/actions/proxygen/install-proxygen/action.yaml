@@ -1,0 +1,10 @@
+name: "Install Proxygen CLI"
+description: "Install Proxygen CLI"
+runs:
+  using: "composite"
+  steps:
+    - name: "Install Proxygen CLI"
+      shell: bash
+      run: |
+        pip install proxygen-cli
+        proxygen --version
