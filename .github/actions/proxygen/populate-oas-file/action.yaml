@@ -18,9 +18,7 @@ runs:
     - name: "Inject secrets into openapi.yaml for deploying proxy"
       working-directory: "pathology-api"
       shell: bash
-      env:
-        MTLS_SECRET_KEY: ${{ inputs.mtls-secret-key }}
-        PREVIEW_URL: ${{ inputs.preview-url }}
       run: |
         cp openapi.template.yaml openapi.yaml
-        yq eval '.x-nhsd-apim.target.url = env(PREVIEW_URL) | .x-nhsd-apim.target.security.secret = env(MTLS_SECRET_KEY)' -i openapi.yaml
+        yq eval '.x-nhsd-apim.target.url = "${{ inputs.preview-url }}"' -i openapi.yaml
+        yq eval '.x-nhsd-apim.target.security.secret = "${{ inputs.mtls-secret-key }}"' -i openapi.yaml
