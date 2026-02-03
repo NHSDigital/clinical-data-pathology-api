@@ -10,10 +10,7 @@ runs:
   using: composite
   steps:
     - name: Install yq for YAML template processing
-      shell: bash
-      run: |
-        sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
-        sudo chmod +x /usr/local/bin/yq
+      uses: mikefarah/yq@2be0094729a1006f61e8339ce9934bfb3cbb549f # v4.52.2
 
     - name: Install Proxygen CLI
       shell: bash
