@@ -16,8 +16,9 @@ permissions:
 env:
   AWS_REGION: eu-west-2
   PREVIEW_PREFIX: pr-
+  PYTHON_VERSION: 3.14
   LAMBDA_RUNTIME: python3.14
-  LAMBDA_HANDLER: handler.handler
+  LAMBDA_HANDLER: lambda_handler.handler
 
 jobs:
   pr-preview:
@@ -34,13 +35,16 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548
         with:
-          python-version: "3.14"
+          python-version: "${{ env.PYTHON_VERSION }}"
+
+      - name: "Setup Python project"
+        uses: ./.github/actions/setup-python-project
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Package artifact
         run: |
-          cd infrastructure/environments/preview
-          rm -f artifact.zip
-          zip -r artifact.zip .
+          make build
 
       - name: Select AWS role inputs
         id: role-select
@@ -86,7 +90,7 @@ jobs:
       - name: Create or update preview Lambda (on open/sync/reopen)
         if: github.event.action != 'closed'
         run: |
-          cd infrastructure/environments/preview
+          cd pathology-api/target/
           FN="${{ steps.names.outputs.function_name }}"
           echo "Deploying preview function: $FN"
           wait_for_lambda_ready() {

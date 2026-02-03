@@ -23,3 +23,4 @@ pathology-api/test-artefacts/
 **/.env
 
 **/.DS_Store
+**/.coverage

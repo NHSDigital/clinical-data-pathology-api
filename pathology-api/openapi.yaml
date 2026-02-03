@@ -6,286 +6,145 @@ info:
   contact:
     name: API Support
 servers:
-  - url: http://localhost:5001
+  - url: http://localhost:5002
     description: Local development server
 paths:
-  /2015-03-31/functions/function/invocations:
+  /FHIR/R4/Bundle:
     post:
-      summary: Get hello world message
-      description: Returns a simple hello world message
-      operationId: postHelloWorld
+      summary: Provide a new test result
+      description: Provide a new test result to the pathology API
+      operationId: postBundle
       requestBody:
-        required: false
+        required: true
         content:
-          application/json:
+          application/fhir+json:
             schema:
               type: object
+              required:
+                - resourceType
+                - type
+                - entry
               properties:
-                payload:
+                resourceType:
                   type: string
-                  description: The payload to be processed
-      responses:
-        '200':
-          description: Successful response
-          content:
-            text/plain:
-              schema:
-                type: object
-                properties:
-                  status_code:
-                    type: integer
-                    description: Status code of the interaction
-                  body:
-                    type: string
-                    description: The output of the interaction
-                  errorMessage:
-                    type: string
-                    description: Any error messages relating to errors encountered with the interaction
-                  errorType:
-                    type: string
-                    description: The type of error encountered during the interaction, if an error has occurred
-                  requestId:
-                    type: string
-                    format: uuid
-                    description: The unique request ID for the interaction
-                  stacktrace:
-                    type: array
-                    items:
-                      type: string
-                    description: The stack trace of the error, if an error has occurred
-    get:
-      summary: Get hello world message
-      description: Returns a simple hello world message
-      operationId: postHelloWorld
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                payload:
+                  enum:
+                    - Bundle
+                  description: FHIR resource type
+                type:
                   type: string
-                  description: The payload to be processed
-      responses:
-        '200':
-          description: Successful response
-          content:
-            text/plain:
-              schema:
-                type: object
-                properties:
-                  status_code:
-                    type: integer
-                    description: Status code of the interaction
-                  body:
-                    type: string
-                    description: The output of the interaction
-                  errorMessage:
-                    type: string
-                    description: Any error messages relating to errors encountered with the interaction
-                  errorType:
-                    type: string
-                    description: The type of error encountered during the interaction, if an error has occurred
-                  requestId:
-                    type: string
-                    format: uuid
-                    description: The unique request ID for the interaction
-                  stacktrace:
-                    type: array
-                    items:
-                      type: string
-                    description: The stack trace of the error, if an error has occurred
+                  enum:
+                    - document
+                    - transaction
+                  description: The type of the bundle
+                  example: document
+                entry:
+                  type: array
+                  description: Entries in the bundle
+                  minItems: 1
+                  maxItems: 1
+                  items:
+                    type: object
+                    required:
+                      - fullUrl
+                      - resource
+                    properties:
+                      fullUrl:
+                        type: string
+                        description: URI for resource
+                        example: "patient"
+                      resource:
+                        type: object
+                        required:
+                          - resourceType
+                          - identifier
+                        properties:
+                          resourceType:
+                            type: string
+                            description: Type of FHIR resource (Always "Patient")
+                            enum:
+                              - Patient
+                            example: Patient
+                          identifier:
+                            type: object
+                            required:
+                              - system
+                              - value
+                            properties:
+                              system:
+                                type: string
+                                enum:
+                                  - "https://fhir.nhs.uk/Id/nhs-number"
+                                example: "https://fhir.nhs.uk/Id/nhs-number"
+                              value:
+                                type: string
+                                example: "9999999999"
 
-        '404':
-          description: Route not found
+      responses:
+        '200':
+          description: Successful response
           content:
-            text/html:
+            application/fhir+json:
+              schema:
+                schema:
+              type: object
+              required:
+                - resourceType
+                - type
+              properties:
+                resourceType:
+                  type: string
+                  enum:
+                    - Bundle
+                  description: FHIR resource type (always "Bundle")
+                meta:
+                  type: object
+                  description: Metadata about the resource
+                  nullable: true
+                type:
+                  type: string
+                  enum:
+                    - document
+                    - transaction
+                  description: The type of the bundle
+                identifier:
+                  type: object
+                  nullable: true
+                  description: Persistent identifier for the bundle (UUID)
+                  properties:
+                    system:
+                      type: string
+                      format: uri
+                    value:
+                      type: string
+                      format: uuid
+                entry:
+                  type: array
+                  nullable: true
+                  description: Entries in the bundle
+                  items:
+                    type: object
+                    required:
+                      - fullUrl
+                      - resource
+                    properties:
+                      fullUrl:
+                        type: string
+                        description: URI for resource
+                      resource:
+                        type: object
+                        required:
+                          - resourceType
+                        description: The Patient a test result is for
+                        properties:
+                          resourceType:
+                            type: string
+                            description: Type of FHIR resource (always "Patient")
+                            enum:
+                              - Patient
+                            example: Patient
+        '400':
+          description: Invalid request
+          content:
+            text/plain:
               schema:
                 type: string
-    put:
-      summary: Get hello world message
-      description: Returns a simple hello world message
-      operationId: postHelloWorld
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                payload:
-                  type: string
-                  description: The payload to be processed
-      responses:
-        '200':
-          description: Successful response
-          content:
-            text/plain:
-              schema:
-                type: object
-                properties:
-                  status_code:
-                    type: integer
-                    description: Status code of the interaction
-                  body:
-                    type: string
-                    description: The output of the interaction
-                  errorMessage:
-                    type: string
-                    description: Any error messages relating to errors encountered with the interaction
-                  errorType:
-                    type: string
-                    description: The type of error encountered during the interaction, if an error has occurred
-                  requestId:
-                    type: string
-                    format: uuid
-                    description: The unique request ID for the interaction
-                  stacktrace:
-                    type: array
-                    items:
-                      type: string
-                    description: The stack trace of the error, if an error has occurred
-
-        '404':
-          description: Route not found
-          content:
-            text/html:
-              schema:
-                type: string
-    patch:
-      summary: Get hello world message
-      description: Returns a simple hello world message
-      operationId: postHelloWorld
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                payload:
-                  type: string
-                  description: The payload to be processed
-      responses:
-        '200':
-          description: Successful response
-          content:
-            text/plain:
-              schema:
-                type: object
-                properties:
-                  status_code:
-                    type: integer
-                    description: Status code of the interaction
-                  body:
-                    type: string
-                    description: The output of the interaction
-                  errorMessage:
-                    type: string
-                    description: Any error messages relating to errors encountered with the interaction
-                  errorType:
-                    type: string
-                    description: The type of error encountered during the interaction, if an error has occurred
-                  requestId:
-                    type: string
-                    format: uuid
-                    description: The unique request ID for the interaction
-                  stacktrace:
-                    type: array
-                    items:
-                      type: string
-                    description: The stack trace of the error, if an error has occurred
-
-        '404':
-          description: Route not found
-          content:
-            text/html:
-              schema:
-                type: string
-    delete:
-      summary: Get hello world message
-      description: Returns a simple hello world message
-      operationId: postHelloWorld
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                payload:
-                  type: string
-                  description: The payload to be processed
-      responses:
-        '200':
-          description: Successful response
-          content:
-            text/plain:
-              schema:
-                type: object
-                properties:
-                  status_code:
-                    type: integer
-                    description: Status code of the interaction
-                  body:
-                    type: string
-                    description: The output of the interaction
-                  errorMessage:
-                    type: string
-                    description: Any error messages relating to errors encountered with the interaction
-                  errorType:
-                    type: string
-                    description: The type of error encountered during the interaction, if an error has occurred
-                  requestId:
-                    type: string
-                    format: uuid
-                    description: The unique request ID for the interaction
-                  stacktrace:
-                    type: array
-                    items:
-                      type: string
-                    description: The stack trace of the error, if an error has occurred
-    trace:
-      summary: Get hello world message
-      description: Returns a simple hello world message
-      operationId: postHelloWorld
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                payload:
-                  type: string
-                  description: The payload to be processed
-      responses:
-        '200':
-          description: Successful response
-          content:
-            text/plain:
-              schema:
-                type: object
-                properties:
-                  status_code:
-                    type: integer
-                    description: Status code of the interaction
-                  body:
-                    type: string
-                    description: The output of the interaction
-                  errorMessage:
-                    type: string
-                    description: Any error messages relating to errors encountered with the interaction
-                  errorType:
-                    type: string
-                    description: The type of error encountered during the interaction, if an error has occurred
-                  requestId:
-                    type: string
-                    format: uuid
-                    description: The unique request ID for the interaction
-                  stacktrace:
-                    type: array
-                    items:
-                      type: string
-                    description: The stack trace of the error, if an error has occurred
