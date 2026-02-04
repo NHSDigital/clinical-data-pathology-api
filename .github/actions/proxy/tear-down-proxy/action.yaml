@@ -24,4 +24,4 @@ runs:
     - name: Tear down preview API proxy
       shell: bash
       run: |
-        proxygen instance delete internal-dev {{ inputs.proxy-base-path }} --no-confirm
+        proxygen instance delete internal-dev ${{ inputs.proxy-base-path }} --no-confirm
