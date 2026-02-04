@@ -2,8 +2,8 @@ name: Deploy API Proxy
 description: Deploy the API proxy instance using Proxygen
 
 inputs:
-  mtls-secret-key:
-    description: 'mTLS secret key for the proxy'
+  mtls-secret-name:
+    description: 'mTLS secret name for the proxy'
     required: true
   target-url:
     description: 'Target URL to which the proxy will forward requests'
@@ -14,6 +14,9 @@ inputs:
   proxygen-key-secret:
     description: 'Proxygen private key secret'
     required: true
+  proxygen-key-id:
+    description: 'Proxygen key ID'
+    required: true
 
 runs:
   using: composite
@@ -22,13 +25,14 @@ runs:
       uses: ./.github/actions/proxy/configure-proxygen
       with:
         proxygen-key-secret: ${{ inputs.proxygen-key-secret }}
+        proxygen-key-id: ${{ inputs.proxygen-key-id }}
 
     - name: Inject secrets into openapi.yaml for deploying proxy
       shell: bash
       run: |
         cat pathology-api/openapi.yaml proxygen/x-nhsd-apim.template.yaml > /tmp/proxy-specification.yaml
 
-        yq eval '.x-nhsd-apim.target.url = "${{ inputs.target-url }}" | .x-nhsd-apim.target.security.secret = "${{ inputs.mtls-secret-key }}"' -i /tmp/proxy-specification.yaml
+        yq eval '.x-nhsd-apim.target.url = "${{ inputs.target-url }}" | .x-nhsd-apim.target.security.secret = "${{ inputs.mtls-secret-name }}"' -i /tmp/proxy-specification.yaml
 
     - name: Deploy API proxy
       shell: bash

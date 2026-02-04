@@ -8,14 +8,18 @@ inputs:
   proxygen-key-secret:
     description: 'Proxygen private key secret'
     required: true
+  proxygen-key-id:
+    description: 'Proxygen key ID'
+    required: true
 
 runs:
   using: composite
   steps:
     - name: Configure Proxygen
-      uses: ./.github/actions/configure-proxygen
+      uses: ./.github/actions/proxy/configure-proxygen
       with:
         proxygen-key-secret: ${{ inputs.proxygen-key-secret }}
+        proxygen-key-id: ${{ inputs.proxygen-key-id }}
 
     - name: Tear down preview API proxy
       shell: bash

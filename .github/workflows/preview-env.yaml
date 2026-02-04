@@ -19,6 +19,8 @@ env:
   PYTHON_VERSION: 3.14
   LAMBDA_RUNTIME: python3.14
   LAMBDA_HANDLER: lambda_handler.handler
+  MTLS_SECRET_NAME: pathology-mtls-g4723mdj39dS
+  PROXYGEN_KEY_ID: 2027-01-15-PTL-pathology-laboratory-reporting
 
 jobs:
   pr-preview:
@@ -145,10 +147,11 @@ jobs:
         if: github.event.action != 'closed'
         uses: ./.github/actions/proxy/deploy-proxy
         with:
-          mtls-secret-key: ${{ secrets.MTLS_SECRET_NAME }}
+          mtls-secret-name: ${{ env.MTLS_SECRET_NAME }}
           target-url: ${{ steps.names.outputs.preview_url }}
           proxy-base-path: 'pathology-laboratory-reporting-pr-${{ github.event.pull_request.number }}'
           proxygen-key-secret: ${{ env._cds_pathology_dev_proxygen_proxygen_key_secret }}
+          proxygen-key-id: ${{ env.PROXYGEN_KEY_ID }}
 
       - name: Tear down preview API proxy
         if: github.event.action == 'closed'
@@ -156,6 +159,7 @@ jobs:
         with:
           proxy-base-path: 'pathology-laboratory-reporting-pr-${{ github.event.pull_request.number }}'
           proxygen-key-secret: ${{ env._cds_pathology_dev_proxygen_proxygen_key_secret }}
+          proxygen-key-id: ${{ env.PROXYGEN_KEY_ID }}
 
       - name: Comment function name on PR
         if: github.event_name == 'pull_request' && github.event.action != 'closed'
@@ -169,5 +173,5 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: `Preview Lambda: \`${fn}\`\nPreview URL: ${url}`
+              body: `Preview Lambda: \`${fn}\`\nPreview URL: ${url}\nProxy URL: [${proxy_url}](${proxy_url})`
             });

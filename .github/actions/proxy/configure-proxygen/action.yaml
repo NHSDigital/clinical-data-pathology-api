@@ -5,6 +5,9 @@ inputs:
   proxygen-key-secret:
     description: 'Proxygen private key secret'
     required: true
+  proxygen-key-id:
+    description: 'Proxygen key ID'
+    required: true
 
 runs:
   using: composite
@@ -27,3 +30,4 @@ runs:
         printf "%s" "${{ inputs.proxygen-key-secret }}" > /tmp/proxygen_private_key.pem
         cp credentials.template.yaml $HOME/.proxygen/credentials.yaml
         yq eval '.private_key_path = "/tmp/proxygen_private_key.pem"' -i $HOME/.proxygen/credentials.yaml
+        yq eval '.key_id = "${{ inputs.proxygen-key-id }}"' -i $HOME/.proxygen/credentials.yaml
