@@ -8,6 +8,12 @@ inputs:
   proxygen-key-id:
     description: 'Proxygen key ID'
     required: true
+  proxygen-client-id:
+    description: 'Proxygen client ID'
+    required: true
+  proxygen-api-name:
+    description: 'Proxygen API name'
+    required: true
 
 runs:
   using: composite
@@ -26,8 +32,10 @@ runs:
       working-directory: proxygen
       run: |
         cp settings.yaml $HOME/.proxygen/settings.yaml
+        yq eval '.api = "${{ inputs.proxygen-api-name }}"' -i $HOME/.proxygen/settings.yaml
 
         printf "%s" "${{ inputs.proxygen-key-secret }}" > /tmp/proxygen_private_key.pem
         cp credentials.template.yaml $HOME/.proxygen/credentials.yaml
         yq eval '.private_key_path = "/tmp/proxygen_private_key.pem"' -i $HOME/.proxygen/credentials.yaml
         yq eval '.key_id = "${{ inputs.proxygen-key-id }}"' -i $HOME/.proxygen/credentials.yaml
+        yq eval '.client_id = "${{ inputs.proxygen-client-id }}"' -i $HOME/.proxygen/credentials.yaml

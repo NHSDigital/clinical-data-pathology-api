@@ -19,8 +19,10 @@ env:
   PYTHON_VERSION: 3.14
   LAMBDA_RUNTIME: python3.14
   LAMBDA_HANDLER: lambda_handler.handler
-  MTLS_SECRET_NAME: pathology-mtls-g4723mdj39dS
-  PROXYGEN_KEY_ID: 2027-01-15-PTL-pathology-laboratory-reporting
+  MTLS_SECRET_NAME: ${{ vars.PREVIEW_ENV_MTLS_SECRET_NAME }}
+  PROXYGEN_KEY_ID: ${{ vars.PREVIEW_ENV_PROXYGEN_KEY_ID }}
+  PROXYGEN_CLIENT_ID: ${{ vars.PREVIEW_ENV_PROXYGEN_CLIENT_ID }}
+  PROXYGEN_API_NAME: ${{ vars.PROXYGEN_API_NAME }}
 
 jobs:
   pr-preview:
@@ -86,7 +88,7 @@ jobs:
           fi
           FN="${PREFIX}${SAFE}"
           echo "function_name=$FN" >> "$GITHUB_OUTPUT"
-          URL="https://${SAFE}.dev.endpoints.pathology-laboratory-reporting.national.nhs.uk"
+          URL="https://${SAFE}.dev.endpoints.${{ env.PROXYGEN_API_NAME }}.national.nhs.uk"
           echo "preview_url=$URL" >> "$GITHUB_OUTPUT"
 
       - name: Create or update preview Lambda (on open/sync/reopen)
@@ -149,17 +151,21 @@ jobs:
         with:
           mtls-secret-name: ${{ env.MTLS_SECRET_NAME }}
           target-url: ${{ steps.names.outputs.preview_url }}
-          proxy-base-path: 'pathology-laboratory-reporting-pr-${{ github.event.pull_request.number }}'
+          proxy-base-path: '${{ env.PROXYGEN_API_NAME }}-pr-${{ github.event.pull_request.number }}'
           proxygen-key-secret: ${{ env._cds_pathology_dev_proxygen_proxygen_key_secret }}
           proxygen-key-id: ${{ env.PROXYGEN_KEY_ID }}
+          proxygen-client-id: ${{ env.PROXYGEN_CLIENT_ID }}
+          proxygen-api-name: ${{ env.PROXYGEN_API_NAME }}
 
       - name: Tear down preview API proxy
         if: github.event.action == 'closed'
         uses: ./.github/actions/proxy/tear-down-proxy
         with:
-          proxy-base-path: 'pathology-laboratory-reporting-pr-${{ github.event.pull_request.number }}'
+          proxy-base-path: '${{ env.PROXYGEN_API_NAME }}-pr-${{ github.event.pull_request.number }}'
           proxygen-key-secret: ${{ env._cds_pathology_dev_proxygen_proxygen_key_secret }}
           proxygen-key-id: ${{ env.PROXYGEN_KEY_ID }}
+          proxygen-client-id: ${{ env.PROXYGEN_CLIENT_ID }}
+          proxygen-api-name: ${{ env.PROXYGEN_API_NAME }}
 
       - name: Comment function name on PR
         if: github.event_name == 'pull_request' && github.event.action != 'closed'
@@ -168,7 +174,7 @@ jobs:
           script: |
             const fn = '${{ steps.names.outputs.function_name }}';
             const url = '${{ steps.names.outputs.preview_url }}';
-            const proxy_url = 'https://internal-dev.api.service.nhs.uk/pathology-laboratory-reporting-pr-${{ github.event.pull_request.number }}';
+            const proxy_url = 'https://internal-dev.api.service.nhs.uk/${{ env.PROXYGEN_API_NAME }}-pr-${{ github.event.pull_request.number }}';
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
