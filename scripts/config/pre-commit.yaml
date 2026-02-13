@@ -25,11 +25,6 @@ repos:
     args: ["-c", "check=staged-changes ./scripts/githooks/check-english-usage.sh"]
     language: system
     pass_filenames: false
-  - id: lint-terraform
-    name: Lint Terraform
-    entry: ./scripts/githooks/check-terraform-format.sh
-    language: script
-    pass_filenames: false
   - id: python-linting-and-formatting
     name: Python linting and formatting
     entry: ./scripts/githooks/python-lint-and-format.sh
