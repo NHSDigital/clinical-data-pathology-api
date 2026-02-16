@@ -20,6 +20,7 @@ env:
   PYTHON_VERSION: 3.14
   LAMBDA_RUNTIME: python3.14
   LAMBDA_HANDLER: lambda_handler.handler
+  MOCK_LAMBDA_HANDLER: handler.handler
   MTLS_SECRET_NAME: ${{ vars.PREVIEW_ENV_MTLS_SECRET_NAME }}
   PROXYGEN_KEY_ID: ${{ vars.PREVIEW_ENV_PROXYGEN_KEY_ID }}
   PROXYGEN_CLIENT_ID: ${{ vars.PREVIEW_ENV_PROXYGEN_CLIENT_ID }}
@@ -97,16 +98,22 @@ jobs:
         run: |
           SAFE=${{ steps.branch.outputs.safe }}
           PREFIX=${{ env.PREVIEW_PREFIX }}
-          MAX_FN_LEN=64
+          MOCK_PREFIX=${{ env.MOCK_PREFIX }}
+          MAX_FN_LEN=62
           MAX_SAFE_LEN=$((MAX_FN_LEN - ${#PREFIX}))
           if [ ${#SAFE} -gt "$MAX_SAFE_LEN" ]; then
             SAFE=${SAFE:0:MAX_SAFE_LEN}
           fi
           FN="${PREFIX}${SAFE}"
+          MFN="${MOCK_PREFIX}${SAFE}"
           echo "function_name=$FN" >> "$GITHUB_OUTPUT"
+          echo "mock_function_name=$MFN" >> "$GITHUB_OUTPUT"
           URL="https://${SAFE}.dev.endpoints.${{ env.PROXYGEN_API_NAME }}.national.nhs.uk"
+          MOCK_URL="https://${MFN}.m.dev.endpoints.${{ env.PROXYGEN_API_NAME }}.national.nhs.uk"
           echo "preview_url=$URL" >> "$GITHUB_OUTPUT"
+          echo "mock_preview_url=$MOCK_URL" >> "$GITHUB_OUTPUT"
 
+      # ---------- Handle application ----------
       - name: Create or update preview Lambda (on open/sync/reopen)
         if: github.event.action != 'closed'
         run: |
@@ -153,6 +160,54 @@ jobs:
         run: |
           echo "function = ${{ steps.names.outputs.function_name }}"
           echo "url      = ${{ steps.names.outputs.preview_url }}"
+
+      # ---------- Handle mock endpoints ----------
+      - name: Create or update mock  Lambda (on open/sync/reopen)
+        if: github.event.action != 'closed'
+        run: |
+          cd infrastructure/environments/preview
+          MFN="${{ steps.names.outputs.mock_function_name }}"
+          echo "Deploying mock function: $MFN"
+          wait_for_lambda_ready() {
+            while true; do
+            status=$(aws lambda get-function-configuration --function-name "$MFN" --query 'LastUpdateStatus' --output text 2>/dev/null || echo "Unknown")
+            if [ "$status" = "Successful" ] || [ "$status" = "Unknown" ]; then
+              break
+            fi
+            if [ "$status" = "Failed" ]; then
+              echo "Lambda is in Failed state; check logs." >&2
+              exit 1
+            fi
+            echo "Lambda update status: $status — waiting..."
+            sleep 5
+          done
+          }
+          if aws lambda get-function --function-name "$MFN" >/dev/null 2>&1; then
+            wait_for_lambda_ready
+            aws lambda update-function-configuration --function-name "$MFN" --handler "${{ env.LAMBDA_HANDLER }}" || true
+            wait_for_lambda_ready
+            aws lambda update-function-code --function-name "$MFN" --zip-file "fileb://artifact.zip" --publish
+          else
+            aws lambda create-function --function-name "$MFN" \
+              --runtime "${{ env.LAMBDA_RUNTIME }}" \
+              --handler "${{ env.MOCK_LAMBDA_HANDLER }}" \
+              --zip-file "fileb://artifact.zip" \
+              --role "${{ steps.role-select.outputs.lambda_role }}" \
+              --publish
+            wait_for_lambda_ready
+          fi
+
+      - name: Delete mock Lambda (on PR closed)
+        if: github.event.action == 'closed'
+        run: |
+          MFN="${{ steps.names.outputs.mock_function_name }}"
+          echo "Deleting mock function:  $MFN"
+          aws lambda delete-function --function-name "$MFN" || true
+
+      - name: Output mock function name
+        run: |
+          echo "mock_function = ${{ steps.names.outputs.mock_function_name }}"
+          echo "mock_url      = ${{ steps.names.outputs.mock_preview_url }}"
 
       # ---------- Wait on AWS tasks and notify ----------
       - name: Get mTLS certs for testing
