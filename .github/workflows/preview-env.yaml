@@ -109,7 +109,7 @@ jobs:
           echo "function_name=$FN" >> "$GITHUB_OUTPUT"
           echo "mock_function_name=$MFN" >> "$GITHUB_OUTPUT"
           URL="https://${SAFE}.dev.endpoints.${{ env.PROXYGEN_API_NAME }}.national.nhs.uk"
-          MOCK_URL="https://${MFN}.m.dev.endpoints.${{ env.PROXYGEN_API_NAME }}.national.nhs.uk"
+          MOCK_URL="https://${SAFE}.m.dev.endpoints.${{ env.PROXYGEN_API_NAME }}.national.nhs.uk"
           echo "preview_url=$URL" >> "$GITHUB_OUTPUT"
           echo "mock_preview_url=$MOCK_URL" >> "$GITHUB_OUTPUT"
 
