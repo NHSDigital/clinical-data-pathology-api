@@ -16,6 +16,7 @@ permissions:
 env:
   AWS_REGION: eu-west-2
   PREVIEW_PREFIX: pr-
+  MOCK_PREFIX: mock-
   PYTHON_VERSION: 3.14
   LAMBDA_RUNTIME: python3.14
   LAMBDA_HANDLER: lambda_handler.handler
@@ -49,6 +50,14 @@ jobs:
       - name: Package artifact
         run: |
           make build
+
+      # Place holder mock artifact packaging to allow testing of mock API in preview environment;
+      # can be extended to build a real mock Lambda if needed
+      - name: Package mock artifact
+        run: |
+          cd infrastructure/environments/preview
+          rm -f mock_artifact.zip
+          zip -r mock_artifact.zip .
 
       - name: Select AWS role inputs
         id: role-select
@@ -220,7 +229,7 @@ jobs:
         with:
           mtls-secret-name: ${{ env.MTLS_SECRET_NAME }}
           target-url: ${{ steps.names.outputs.preview_url }}
-          proxy-base-path: '${{ env.PROXYGEN_API_NAME }}-pr-${{ github.event.pull_request.number }}'
+          proxy-base-path: "${{ env.PROXYGEN_API_NAME }}-pr-${{ github.event.pull_request.number }}"
           proxygen-key-secret: ${{ env._cds_pathology_dev_proxygen_proxygen_key_secret }}
           proxygen-key-id: ${{ env.PROXYGEN_KEY_ID }}
           proxygen-client-id: ${{ env.PROXYGEN_CLIENT_ID }}
@@ -230,7 +239,7 @@ jobs:
         if: github.event.action == 'closed'
         uses: ./.github/actions/proxy/tear-down-proxy
         with:
-          proxy-base-path: '${{ env.PROXYGEN_API_NAME }}-pr-${{ github.event.pull_request.number }}'
+          proxy-base-path: "${{ env.PROXYGEN_API_NAME }}-pr-${{ github.event.pull_request.number }}"
           proxygen-key-secret: ${{ env._cds_pathology_dev_proxygen_proxygen_key_secret }}
           proxygen-key-id: ${{ env.PROXYGEN_KEY_ID }}
           proxygen-client-id: ${{ env.PROXYGEN_CLIENT_ID }}
