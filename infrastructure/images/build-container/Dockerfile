@@ -51,6 +51,9 @@ fi \
         sqlite-dev \
         tk-dev \
         zstd-dev \
+        # Required for building lxml Python package
+        libxml2-dev \
+        libxslt-dev \
 
     # Configure doas to allow members of the wheel group to run commands as root.
     && echo "permit :wheel" >> /etc/doas.conf \
@@ -122,7 +125,10 @@ WORKDIR /workspace/clinical-data-pathology-api
 # Install pipx and poetry
 ENV PIPX_BIN_DIR="/pipx/bin"
 ENV PIPX_HOME="/pipx/lib"
-RUN bash -c "source ~/.bashrc && pip install --root-user-action ignore pipx && pipx install poetry && pipx install ruff"
+RUN bash -c "source ~/.bashrc && pip install --root-user-action ignore pipx \
+    && pipx install poetry \
+    && pipx install ruff \
+    && pipx install proxygen-cli"
 ENV PATH="$PIPX_BIN_DIR:$PATH"
 
 # Create a virtual environment for development

@@ -52,7 +52,15 @@ dev = [
     "types-requests (>=2.32.4.20250913,<3.0.0.0)",
     "types-pyyaml (>=6.0.12.20250915,<7.0.0.0)",
     "python-dotenv (>=1.2.1,<2.0.0)",
+    "pytest-nhsd-apim (>=6.0.6,<7.0.0)",
 ]
 
 [tool.mypy]
 strict = true
+
+[tool.pytest.ini_options]
+markers = [
+    "remote_only: test only runs in remote environment (skipped when --env=local)",
+    "status_auth_headers",
+    "status_merged_auth_headers",
+]

@@ -101,6 +101,7 @@ class TestConsumerContract:
         This test defines the contract: when the consumer requests
         GET to the status endpoint, a 200 response with "OK" body is returned.
         """
+        status_matcher = match.regex("pass", regex=r"^(pass|ok)$")
         pact = Pact(consumer="PathologyAPIConsumer", provider="PathologyAPIProvider")
 
         # Define the expected interaction
@@ -109,8 +110,8 @@ class TestConsumerContract:
             .with_request(method="GET", path="/_status")
             .will_respond_with(status=200)
             .with_body(
-                "OK",
-                content_type="text/plain",
+                {"status": status_matcher},
+                content_type="application/json",
             )
         )
 
@@ -118,11 +119,12 @@ class TestConsumerContract:
         with pact.serve() as server:
             # Make the actual request to the mock provider
             response = requests.get(f"{server.url}/_status", timeout=10)
+            data = response.json()
 
             # Verify the response matches expectations
             assert response.status_code == 200
-            assert response.text == "OK"
-            assert response.headers["Content-Type"] == "text/plain"
+            assert data["status"] in {"pass", "ok"}
+            assert response.headers["Content-Type"] == "application/json"
 
         # Write the pact file after the test
         pact.write_file("tests/contract/pacts")

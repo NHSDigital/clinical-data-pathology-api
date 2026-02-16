@@ -4,14 +4,18 @@ This test suite verifies that the actual Flask provider implementation
 satisfies the contracts defined by consumers.
 """
 
+from typing import Any
+
+import pytest
 from pact import Verifier
 
 
+@pytest.mark.remote_only
 class TestProviderContract:
     """Provider contract tests to verify the API implementation."""
 
     def test_provider_honors_consumer_contract(
-        self, base_url: str, hostname: str
+        self, base_url: str, hostname: str, get_headers: Any
     ) -> None:
         """Verify that the provider satisfies all consumer contracts.
 
@@ -23,6 +27,9 @@ class TestProviderContract:
 
         # Add the transport (how to connect to the provider)
         verifier.add_transport(url=base_url)
+
+        # Add auth headers so the Verifier can authenticate with the APIM proxy
+        verifier.add_custom_headers(get_headers)
 
         # Add the pact file as a source
         verifier.add_source(
