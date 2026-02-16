@@ -191,7 +191,7 @@ jobs:
             aws lambda create-function --function-name "$MFN" \
               --runtime "${{ env.LAMBDA_RUNTIME }}" \
               --handler "${{ env.MOCK_LAMBDA_HANDLER }}" \
-              --zip-file "fileb://artifact.zip" \
+              --zip-file "fileb://mock_artifact.zip" \
               --role "${{ steps.role-select.outputs.lambda_role }}" \
               --publish
             wait_for_lambda_ready
