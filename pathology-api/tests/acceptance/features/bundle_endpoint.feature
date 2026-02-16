@@ -1,3 +1,4 @@
+@status_merged_auth_headers
 Feature: pathology Bundle API
   As an API consumer
   I want to interact with the pathology API

@@ -1,6 +1,6 @@
 {
   "name": "pathology-api-build-container",
-  "build":{
+  "build": {
     "dockerfile": "../infrastructure/images/build-container/Dockerfile",
     "args": {
       "INCLUDE_DEV_CERTS": "true"
@@ -38,13 +38,17 @@
       "omzPlugins": "https://github.com/zsh-users/zsh-autosuggestions.git https://github.com/zsh-users/zsh-syntax-highlighting.git"
     }
   },
-  "postCreateCommand": "doas apk add --no-cache openjdk21-jre && scripts/devcontainer/configure-zsh.sh && bash -c 'source ~/.bashrc && make config && pyenv activate pathology && make dependencies'",
   "initializeCommand": "scripts/devcontainer/create-docker-network-if-required.sh && cp .tool-versions ${localWorkspaceFolder}/infrastructure/images/build-container/resources/.tool-versions",
+  "postCreateCommand": "doas apk add --no-cache openjdk21-jre && scripts/devcontainer/configure-zsh.sh && bash -c 'source ~/.bashrc && make config && pyenv activate pathology && make dependencies'",
   "mounts": [
-    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind,consistency=cached"
+    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind,consistency=cached",
+    "source=/home/${localEnv:USER}/.proxygen,target=/home/pathology-dev/.proxygen,type=bind,consistency=cached"
   ],
   "remoteUser": "pathology-dev",
   "containerUser": "pathology-dev",
+  "containerEnv": {
+    "REQUESTS_CA_BUNDLE": "/etc/ssl/cert.pem"
+  },
   "portsAttributes": {
     // Disabling automatic port forwarding as the devcontainer should already have access to any required ports.
     "default": {

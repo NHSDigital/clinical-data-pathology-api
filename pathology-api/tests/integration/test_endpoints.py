@@ -1,11 +1,12 @@
 """Integration tests for the pathology API using pytest."""
 
 import json
-from typing import Any
+from typing import Any, Literal
 
 import pytest
 from pathology_api.fhir.r4.elements import LogicalReference, PatientIdentifier
 from pathology_api.fhir.r4.resources import Bundle, Composition
+from pydantic import BaseModel, HttpUrl
 
 from tests.conftest import Client
 
@@ -245,11 +246,42 @@ class TestBundleEndpoint:
         }
 
 
+# This test will fail when run locally.
 class TestStatusEndpoint:
+    @pytest.mark.status_auth_headers
     def test_status_returns_200(self, client: Client) -> None:
         response = client.send_without_payload(request_method="GET", path="_status")
         assert response.status_code == 200
-        assert response.headers["Content-Type"] == "text/plain"
+        assert response.headers["Content-Type"] == "application/json"
 
-        response_data = response.text
-        assert response_data == "OK"
+        parsed = StatusResponse.model_validate(response.json())
+
+        assert parsed.status == "pass"
+        assert parsed.checks.healthcheck.responseCode == 200
+        assert parsed.checks.healthcheck.outcome == "OK"
+
+
+class StatusLinks(BaseModel):
+    self: HttpUrl
+
+
+class HealthCheck(BaseModel):
+    status: Literal["pass", "fail"]
+    timeout: Literal["true", "false"]
+    responseCode: int
+    outcome: str
+    links: StatusLinks
+
+
+class Checks(BaseModel):
+    healthcheck: HealthCheck
+
+
+class StatusResponse(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    status: Literal["pass", "fail"]
+    version: str
+    spec_hash: str
+    proxygen_version: str
+    checks: Checks

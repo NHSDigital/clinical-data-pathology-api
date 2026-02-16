@@ -32,6 +32,8 @@ paths:
                   enum:
                     - Bundle
                   description: FHIR resource type
+                meta:
+                  $ref: "#/components/schemas/meta"
                 type:
                   type: string
                   enum:
@@ -75,6 +77,8 @@ paths:
                                   - PractitionerRole
                                   - Organization
                                 example: Patient
+                              meta:
+                                $ref: "#/components/schemas/meta"
       responses:
         '200':
           description: Successful response
@@ -147,6 +151,15 @@ components:
       app-level3:
         $ref: https://proxygen.ptl.api.platform.nhs.uk/components/securitySchemes/app-level3
   schemas:
+    meta:
+      type: object
+      properties:
+        profile:
+          type: array
+          items:
+            type: string
+        versionId:
+          type: string
     CompositionResource:
       type: object
       required:
@@ -159,6 +172,8 @@ components:
           enum:
             - Composition
           example: Composition
+        meta:
+          $ref: "#/components/schemas/meta"
         subject:
           type: object
           required:
