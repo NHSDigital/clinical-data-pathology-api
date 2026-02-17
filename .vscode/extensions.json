@@ -1,7 +1,8 @@
 {
   "recommendations": [
     "eamodio.gitlens",
-    "github.vscode-pull-request-github"
+    "github.vscode-pull-request-github",
+    "andrewbutson.vscode-openapi-viewer"
   ],
   "unwantedRecommendations": [
     "ms-vscode.notepadplusplus-keybindings"

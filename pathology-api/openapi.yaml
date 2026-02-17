@@ -1,21 +1,124 @@
 openapi: 3.0.3
 info:
   title: Pathology and Laboratory Medicine Reporting - FHIR API
-  description: Clinical Data Pathology API
+  description: |
+    ## Overview
+    The Pathology and Laboratory Medicine Reporting API enables the sharing of pathology test results from a laboratory middleware system to the requesting organisation, where the request was initiated in general practice.
+
+    Using this API you can:
+    - Send a laboratory test result
+
+    ## Who can use this API
+    You can use this API if you are a software developer for a middleware application, supporting the aggregation and dissemination of pathology test results from LIMS.
+
+    You must register with us prior to using the API.
+
+    ## Related APIs
+    The following APIs are used by the Pathology and Laboratory Medicine Reporting API to facilitate the storage of pathology test results and publication of events to GP systems:
+
+    - [Patient Data Manager FHIR API](https://digital.nhs.uk/developer/api-catalogue/patient-data-manager)
+    - [Multicast Notification Service API](https://digital.nhs.uk/developer/api-catalogue/multicast-notification-service)
+
+    ## API status and roadmap
+    This API is currently [in development](https://digital.nhs.uk/developer/guides-and-documentation/reference-guide#statuses).
+
+    ## Service level
+    To be confirmed.
+
+    ## Technology
+    This API is [RESTful](https://digital.nhs.uk/developer/guides-and-documentation/api-technologies-at-nhs-digital#basic-rest) and conforms to the [FHIR](https://digital.nhs.uk/developer/guides-and-documentation/api-technologies-at-nhs-digital#fhir) global standards for health care data exchange, specifically to [FHIR Release 4](https://www.hl7.org/fhir/R4/).
+
+    The FHIR R4 API is built alongside the [NHS England Pathology FHIR Implementation Guide](https://simplifier.net/guide/pathology-fhir-implementation-guide?version=0.3.1), which is built on top of [FHIR UK Core](https://digital.nhs.uk/services/fhir-uk-core).
+
+    ## Network access
+    This API is available on the internet.
+
+    For more details see [Network access for APIs](https://digital.nhs.uk/developer/guides-and-documentation/network-access-for-apis).
+
+    ## Security and authorisation
+    This API has one access mode:
+    - [application-restricted access](https://digital.nhs.uk/developer/guides-and-documentation/security-and-authorisation#application-restricted-apis)
+
+    ### Application-restricted access
+    With application-restricted access, we authenticate the calling application but not the end user. This access mode can be used when an end user is not present, for example as part of an automated process.
+
+    To use this access mode, use the following security pattern: [Application-restricted RESTful APIs - signed JWT authentication](https://digital.nhs.uk/developer/guides-and-documentation/security-and-authorisation/application-restricted-restful-apis-signed-jwt-authentication).
+
+    ## Environments and testing
+    | Environment | Base Url |
+    |-------------|----------|
+    | Integration | https://int.api.service.nhs.uk/pathology-laboratory-reporting |
+
+    Our [integration](https://digital.nhs.uk/developer/guides-and-documentation/testing#integration-testing) test environment:
+    - is for formal integration testing
+    - is stateful, so persists updates
+    - includes security and authorisation restrictions
+
+    To use our integration test environment:
+    - use the [instructions](https://digital.nhs.uk/developer/guides-and-documentation/testing#integration-testing-with-our-restful-apis) to setup an application in our integration test environment
+    - contact us with your application ID and application name
+
+    ## Onboarding
+    You need to get your software approved by us before it can go live with this API.
+
+    This API is currently in Alpha with restricted onboarding by invite only.
+
+    ## Errors
+    We use standard HTTP status codes to show whether an API request succeeded or not. They are usually in the range:
+
+    - 200 to 299 if it succeeded, including code 202 if it was accepted by an API that needs to wait for further action
+    - 400 to 499 if it failed because of a client error by your application
+    - 500 to 599 if it failed because of an error on our server
+
+    On error we return a FHIR [OperationOutcome](https://build.fhir.org/operationoutcome.html) resource. See our [reference guide](https://digital.nhs.uk/developer/guides-and-documentation/reference-guide#http-status-codes) for more on errors.
+
   version: 0.1.0
   contact:
     name: API Support
 servers:
-  - url: http://localhost:5002
-    description: Local development server
+  - url: https://int.api.service.nhs.uk/pathology-laboratory-reporting
+    description: Integration environment
 paths:
   /FHIR/R4/Bundle:
     post:
       security:
       - app-level3: []
-      summary: Provide a new test result
-      description: Provide a new test result to the pathology API
+      summary: Send a laboratory test result
+      description: |
+        Use this endpoint to send a FHIR [Document Bundle](https://hl7.org/fhir/R4/bundle.html) to the API.
+
+        The bundle type must be `document` (https://hl7.org/fhir/R4/bundle-definitions.html#Bundle.type). All other bundle types are not supported.
+
+        The request bundle must:
+
+        - have type `document`
+        - contain at least the following resources:
+          - a `Composition` resource as the first entry in the bundle, containing Composition.subject.identifier.value which is populated with the patient's NHS Number
+          - a `ServiceRequest` resource, containing ServiceRequest.requester which references a `PractitionerRole` resource
+          - a `PractitionerRole` resource, containing PractitionerRole.organisation which references an `Organization` resource
+          - an `Organization` resource, containing a Organization.identifier which is populated with the ODS code of the requesting practitioners organisation
+        - conform with the guidance and requirements outlined in the [NHS England Pathology FHIR Implementation Guide](https://simplifier.net/guide/pathology-fhir-implementation-guide)
+        - have each entry specifying a fullUrl
       operationId: postBundle
+      parameters:
+        - name: X-Correlation-ID
+          in: header
+          required: false
+          description: Arbitrary identifier used to identifiy a given request. Useful when debugging or tracing a request that has been sent to this endpoint, as its value will be echoed in any response.
+          schema:
+            type: string
+            example: "b876145d-1ebf-4e22-8ff8-275b570c1ec4"
+        - name: X-Request-ID
+          in: header
+          required: true
+          description: |
+            Note this value is not currently in use, however should be provided by Clients to ensure compatibility with future releases.
+
+            A UUID unique to a given Test Result. This value will be utilised as an Idempotency key for a given request, utilised to ensure that multiple requests with the same X-Request-ID value will not result in multiple Test Results being created. When completing any retrying around the sending of a Test Result, Clients should ensure that the same `X-Request-ID` value is utilised for each retry attempt.
+          schema:
+            type: string
+            format: uuid
+            example: "abafd190-3678-425c-94f5-d1d7dc595142"
       requestBody:
         required: true
         content:
@@ -41,10 +144,13 @@ paths:
                 entry:
                   type: array
                   description: |
-                    Entries that form a Test Result. Any included entries should comply with the [Pathology FHIR Implementation Guide|https://simplifier.net/guide/pathology-fhir-implementation-guide/Home?version=0.2.0], though the resources listed below are additionally required by the Pathology API:
-                    | Resource Type | Required Fields |
-                    |---------------|-----------------|
-                    | Composition   | - `subject` - Required to identify the Patient a given Test Result is for. The Subject should include an `identifier` referencing the `https://fhir.nhs.uk/Id/nhs-number` System value. |
+                    Entries that form a Test Result. Any included entries should comply with the [Pathology FHIR Implementation Guide](https://simplifier.net/guide/pathology-fhir-implementation-guide/Home), though the following resources and fields are specifically required when calling this endpoint:
+                    | Resource Type    | Required Fields |
+                    |------------------|-----------------|
+                    | Composition      | - `subject` - Required to identify the Patient a given Test Result is for. The Subject should include an `identifier` referencing the `https://fhir.nhs.uk/Id/nhs-number` `system` value. \n - `extension[http://hl7.eu/fhir/StructureDefinition/composition-basedOn-order-or-requisition]` - Defines a reference to the `ServiceRequest` within the provided `Bundle`. Provides a [Literal Reference](https://hl7.org/fhir/R4/references.html#literal) to a `ServiceRequest` within the current Test Result `Bundle`.|
+                    | ServiceRequest   | - `requester` - Identifies the requester of a given test. This field should be a [Literal Reference](https://hl7.org/fhir/R4/references.html#literal) to a `PractitionerRole` resource within this `Bundle`. |
+                    | PractitionerRole | - `organization` - Identifies the organization that requested a given test. This field should be a [Literal Reference](https://hl7.org/fhir/R4/references.html#literal) to an `Organization` resource within this `Bundle`. |
+                    | Organization     | - `identifier` - Indicates the [ODS](https://digital.nhs.uk/services/organisation-data-service#top) code for the organisation that request a given test. This field should include an identifier utilising the `system` value of `https://fhir.nhs.uk/Id/ods-organization-code`. |
                   items:
                     type: object
                     required:
@@ -58,6 +164,9 @@ paths:
                       resource:
                         anyOf:
                           - $ref: "#/components/schemas/CompositionResource"
+                          - $ref: "#/components/schemas/ServiceRequestResource"
+                          - $ref: "#/components/schemas/PractitionerRoleResource"
+                          - $ref: "#/components/schemas/OrganizationResource"
                           - type: object
                             required:
                               - resourceType
@@ -70,14 +179,57 @@ paths:
                                   - Observation
                                   - DiagnosticReport
                                   - Specimen
-                                  - ServiceRequest
                                   - Practitioner
-                                  - PractitionerRole
-                                  - Organization
                                 example: Patient
+              example:
+                resourceType: Bundle
+                type: document
+                entry:
+                  - fullUrl: "composition"
+                    resource:
+                      resourceType: Composition
+                      subject:
+                        identifier:
+                          system: "https://fhir.nhs.uk/Id/nhs-number"
+                          value: "9999999999"
+                        extension:
+                          - url: "http://hl7.eu/fhir/StructureDefinition/composition-basedOn-order-or-requisition"
+                            valueReference:
+                              reference: "ServiceRequest"
+                  - fullUrl: "ServiceRequest"
+                    resource:
+                      resourceType: ServiceRequest
+                      requester:
+                        reference: "PractitionerRole"
+                  - fullUrl: "PractitionerRole"
+                    resource:
+                      resourceType: PractitionerRole
+                      organization:
+                        reference: "Organization"
+                  - fullUrl: "Organization"
+                    resource:
+                      resourceType: Organization
+                      identifier:
+                        system: "https://fhir.nhs.uk/Id/ods-organization-code"
+                        value: "A12345"
+                  - fullUrl: "Patient"
+                    resource:
+                      resourceType: Patient
+                  - fullUrl: "DiagnosticReport"
+                    resource:
+                      resourceType: DiagnosticReport
+                  - fullUrl: "Practitioner"
+                    resource:
+                      resourceType: Practitioner
+                  - fullUrl: "Observation"
+                    resource:
+                      resourceType: Observation
       responses:
         '200':
           description: Successful response
+          headers:
+            X-Correlation-ID:
+              $ref: "#/components/headers/X-Correlation-ID"
           content:
             application/fhir+json:
               schema:
@@ -95,6 +247,14 @@ paths:
                     type: object
                     description: Metadata about the resource
                     nullable: true
+                    properties:
+                      versionId:
+                        type: string
+                        description: Version identifier for the resource
+                      lastUpdated:
+                        type: string
+                        format: date-time
+                        description: Timestamp of when the Test Result was created.
                   type:
                     type: string
                     enum:
@@ -129,23 +289,114 @@ paths:
                           type: object
                           required:
                             - resourceType
+              examples:
+                Example success response:
+                  summary: Example success response
+                  value:
+                    id: f0f87d08-e5e9-4b28-a0ae-f5a8c6df01b4
+                    meta:
+                      versionId: "1"
+                      lastUpdated: "2024-01-01T12:00:00Z"
+                    resourceType: Bundle
+                    type: document
+                    entry:
+                      - fullUrl: "composition"
+                        resource:
+                          resourceType: Composition
+                          subject:
+                            identifier:
+                              system: "https://fhir.nhs.uk/Id/nhs-number"
+                              value: "9999999999"
+                            extension:
+                              - url: "http://hl7.eu/fhir/StructureDefinition/composition-basedOn-order-or-requisition"
+                                valueReference:
+                                  reference: "ServiceRequest"
+                      - fullUrl: "ServiceRequest"
+                        resource:
+                          resourceType: ServiceRequest
+                          requester:
+                            reference: "PractitionerRole"
+                      - fullUrl: "PractitionerRole"
+                        resource:
+                          resourceType: PractitionerRole
+                          organization:
+                            reference: "Organization"
+                      - fullUrl: "Organization"
+                        resource:
+                          resourceType: Organization
+                          identifier:
+                            system: "https://fhir.nhs.uk/Id/ods-organization-code"
+                            value: "A12345"
+                      - fullUrl: "Patient"
+                        resource:
+                          resourceType: Patient
+                      - fullUrl: "DiagnosticReport"
+                        resource:
+                          resourceType: DiagnosticReport
+                      - fullUrl: "Practitioner"
+                        resource:
+                          resourceType: Practitioner
+                      - fullUrl: "Observation"
+                        resource:
+                          resourceType: Observation
         '400':
           description: Invalid request
+          headers:
+            X-Correlation-ID:
+              $ref: "#/components/headers/X-Correlation-ID"
           content:
             application/fhir+json:
               schema:
                 $ref: "#/components/schemas/OperationOutcome"
+              examples:
+                Example Validation Error response:
+                  summary: Example OperationOutcome response for invalid request
+                  value:
+                    resourceType: OperationOutcome
+                    issue:
+                      - severity: error
+                        code: invalid
+                        diagnostics: "Resources must be provided as a bundle of type document"
         '500':
           description: Unexpected internal error
+          headers:
+            X-Correlation-ID:
+              $ref: "#/components/headers/X-Correlation-ID"
           content:
             application/fhir+json:
               schema:
                 $ref: "#/components/schemas/OperationOutcome"
+              examples:
+                Example Internal Error response:
+                  summary: Example OperationOutcome response for unexpected internal error
+                  value:
+                    resourceType: OperationOutcome
+                    issue:
+                      - severity: error
+                        code: invalid
+                        diagnostics: "An unexpected internal error has occurred"
+
+        '401':
+          description: Unauthorized request
+          headers:
+            X-Correlation-ID:
+              $ref: "#/components/headers/X-Correlation-ID"
+        '403':
+          description: Forbidden request
+          headers:
+            X-Correlation-ID:
+              $ref: "#/components/headers/X-Correlation-ID"
 
 components:
   securitySchemes:
       app-level3:
         $ref: https://proxygen.ptl.api.platform.nhs.uk/components/securitySchemes/app-level3
+  headers:
+    X-Correlation-ID:
+      description: Echoes the value provided within the `X-Correlation-ID` request header.
+      required: false
+      schema:
+        type: string
   schemas:
     CompositionResource:
       type: object
@@ -155,7 +406,7 @@ components:
       properties:
         resourceType:
           type: string
-          description: Type of FHIR resource (Always "Composition")
+          description: Type of FHIR resource (always "Composition")
           enum:
             - Composition
           example: Composition
@@ -163,6 +414,7 @@ components:
           type: object
           required:
             - identifier
+            - extension
           properties:
             identifier:
               type: object
@@ -178,6 +430,97 @@ components:
                 value:
                   type: string
                   example: "9999999999"
+            extension:
+              type: array
+              items:
+                type: object
+                required:
+                  - url
+                  - valueReference
+                properties:
+                  url:
+                    type: string
+                    enum:
+                      - "http://hl7.eu/fhir/StructureDefinition/composition-basedOn-order-or-requisition"
+                    example: "http://hl7.eu/fhir/StructureDefinition/composition-basedOn-order-or-requisition"
+                  valueReference:
+                    type: object
+                    required:
+                      - reference
+                    properties:
+                      reference:
+                        type: string
+                        description: A Literal Reference to a ServiceRequest resource within the current Bundle. This provided reference should resolve to the `fullUrl` of a ServiceRequest entry within the current Bundle.
+                        example: "urn:uuid:8a6d85b8-9837-4fed-a257-4cf207988338"
+    ServiceRequestResource:
+      type: object
+      required:
+        - resourceType
+        - requester
+      properties:
+        resourceType:
+          type: string
+          description: Type of FHIR resource (always "ServiceRequest")
+          enum:
+            - ServiceRequest
+          example: ServiceRequest
+        requester:
+          type: object
+          required:
+            - reference
+          properties:
+            reference:
+              type: string
+              description: A Literal Reference to a PractitionerRole resource within the current Bundle. This provided reference should resolve to the `fullUrl` of a PractitionerRole entry within the current Bundle.
+              example: "urn:uuid:8a6d85b8-9837-4fed-a257-4cf207988338"
+    PractitionerRoleResource:
+      type: object
+      required:
+        - resourceType
+        - organization
+      properties:
+        resourceType:
+          type: string
+          description: Type of FHIR resource (always "PractitionerRole")
+          enum:
+            - PractitionerRole
+          example: PractitionerRole
+        organization:
+          type: object
+          required:
+            - reference
+          properties:
+            reference:
+              type: string
+              description: A Literal Reference to an `Organization` resource within the current Bundle. This provided reference should resolve to the `fullUrl` of an `Organization` entry within the current Bundle.
+              example: "urn:uuid:7cbbacfa-1b8c-4d9e-9c5a-8fbbacfa1b8c"
+    OrganizationResource:
+      type: object
+      required:
+        - resourceType
+        - identifier
+      properties:
+        resourceType:
+          type: string
+          description: Type of FHIR resource (always "Organization")
+          enum:
+            - Organization
+          example: Organization
+        identifier:
+          type: object
+          required:
+            - system
+            - value
+          properties:
+            system:
+              type: string
+              enum:
+                - "https://fhir.nhs.uk/Id/ods-organization-code"
+              example: "https://fhir.nhs.uk/Id/ods-organization-code"
+            value:
+              type: string
+              example: "A12345"
+              description: ODS code of the requesting organisation
     OperationOutcome:
       type: object
       required:
