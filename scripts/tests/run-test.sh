@@ -42,13 +42,23 @@ else
   COV_PATH="src/pathology_api"
 fi
 
-# Note: TEST_PATH is intentionally unquoted to allow glob expansion for unit tests
-poetry run pytest ${TEST_PATH} -v \
-  --cov=${COV_PATH} \
-  --cov-report=html:test-artefacts/coverage-html \
-  --cov-report=term \
-  --junit-xml="test-artefacts/${TEST_TYPE}-tests.xml" \
-  --html="test-artefacts/${TEST_TYPE}-tests.html" --self-contained-html
+if [ "$ENV" = "remote" ]; then
+  # Note: TEST_PATH is intentionally unquoted to allow glob expansion for unit tests
+  poetry run pytest ${TEST_PATH} --env="remote" -v \
+    --api-name=pathology-laboratory-reporting --proxy-name=pathology-laboratory-reporting--internal-dev--pathology-laboratory-reporting-pr-${PR_NUMBER} \
+    --cov=${COV_PATH} \
+    --cov-report=html:test-artefacts/coverage-html \
+    --cov-report=term \
+    --junit-xml="test-artefacts/${TEST_TYPE}-tests.xml" \
+    --html="test-artefacts/${TEST_TYPE}-tests.html" --self-contained-html
+else
+  poetry run pytest ${TEST_PATH} -v \
+    --cov=${COV_PATH} \
+    --cov-report=html:test-artefacts/coverage-html \
+    --cov-report=term \
+    --junit-xml="test-artefacts/${TEST_TYPE}-tests.xml" \
+    --html="test-artefacts/${TEST_TYPE}-tests.html" --self-contained-html
+fi
 
 # Save coverage data file for merging
 mv .coverage "test-artefacts/coverage.${TEST_TYPE}"

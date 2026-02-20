@@ -1,0 +1,43 @@
+name: Generate Apigee Token
+description: Generate the Apigee Token needed to run the tests
+
+inputs:
+  proxygen-key-secret:
+    description: 'Proxygen private key secret'
+    required: true
+  proxygen-key-id:
+    description: 'Proxygen key ID'
+    required: true
+  proxygen-client-id:
+    description: 'Proxygen client ID'
+    required: true
+  proxygen-api-name:
+    description: 'Proxygen API name'
+    required: true
+outputs:
+  apigee-access-token:
+    description: "The token needed to use apigee in our testing"
+    value: ${{ steps.retrieve_apigee_token.outputs.apigee-access-token }}
+
+runs:
+  using: composite
+  steps:
+    - name: Configure Proxygen
+      uses: ./.github/actions/proxy/configure-proxygen
+      with:
+        proxygen-key-secret: ${{ inputs.proxygen-key-secret }}
+        proxygen-key-id: ${{ inputs.proxygen-key-id }}
+        proxygen-client-id: ${{ inputs.proxygen-client-id }}
+        proxygen-api-name: ${{ inputs.proxygen-api-name }}
+
+    - id: retrieve_apigee_token
+      name: Retrieve token
+      shell: bash
+      run: |
+        TOKEN=$(proxygen pytest-nhsd-apim get-token | jq -r '.pytest_nhsd_apim_token')
+        if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+          echo "::error::Failed to retrieve Apigee token"
+          exit 1
+        fi
+        echo "apigee-access-token=$TOKEN" >> $GITHUB_OUTPUT
+        echo "Token retrieved successfully (length: ${#TOKEN})"
