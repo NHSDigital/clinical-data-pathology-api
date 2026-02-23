@@ -40,12 +40,19 @@ jobs:
           python-version: ${{ inputs.python_version }}
       - name: "Run unit test suite"
         run: make test-unit
-      - name: "Upload unit test results"
+      - name: "Upload unit test results for pathology-api"
         if: always()
         uses: actions/upload-artifact@v6
         with:
           name: unit-test-results
           path: pathology-api/test-artefacts/
+          retention-days: 30
+      - name: "Upload unit test results for mocks"
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: mock-unit-test-results
+          path: mocks/test-artefacts/
           retention-days: 30
       - name: "Publish unit test results to summary"
         if: always()
@@ -191,18 +198,34 @@ jobs:
         with:
           path: pathology-api/test-artefacts/
           merge-multiple: false
+      - name: "Download mock test coverage artefacts"
+        uses: actions/download-artifact@v7
+        with:
+          name: mock-unit-test-results
+          path: mocks/test-artefacts/
+          merge-multiple: false
       - name: "Merge coverage data"
         run: make test-coverage
       - name: "Rename coverage XML with unique name"
         run: |
           cd pathology-api/test-artefacts
           mv coverage-merged.xml ${{ needs.create-coverage-name.outputs.coverage-name }}.xml
+          cd ../..
+          cd mocks/test-artefacts
+          mv coverage-merged.xml ${{ needs.create-coverage-name.outputs.coverage-name }}-mocks.xml
       - name: "Upload combined coverage report"
         if: always()
         uses: actions/upload-artifact@v6
         with:
           name: ${{ needs.create-coverage-name.outputs.coverage-name }}
           path: pathology-api/test-artefacts
+          retention-days: 30
+      - name: "Upload mocks coverage report"
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ needs.create-coverage-name.outputs.coverage-name }}-mocks
+          path: mocks/test-artefacts
           retention-days: 30
 
   sonarcloud-analysis:
@@ -221,6 +244,11 @@ jobs:
         with:
           name: ${{ needs.create-coverage-name.outputs.coverage-name }}
           path: coverage-reports/
+      - name: "Download mock coverage report"
+        uses: actions/download-artifact@v7
+        with:
+          name: ${{ needs.create-coverage-name.outputs.coverage-name }}-mocks
+          path: coverage-reports/
       - name: "SonarCloud Scan"
         uses: SonarSource/sonarqube-scan-action@v7
         env:
@@ -229,4 +257,4 @@ jobs:
           args: >
             -Dsonar.organization=${{ vars.SONAR_ORGANISATION_KEY }}
             -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
-            -Dsonar.python.coverage.reportPaths=coverage-reports/${{ needs.create-coverage-name.outputs.coverage-name }}.xml
+            -Dsonar.python.coverage.reportPaths=coverage-reports/${{ needs.create-coverage-name.outputs.coverage-name }}.xml,coverage-reports/${{ needs.create-coverage-name.outputs.coverage-name }}-mocks.xml
