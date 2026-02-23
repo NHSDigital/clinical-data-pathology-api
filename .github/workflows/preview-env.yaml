@@ -23,7 +23,7 @@ env:
   PROXYGEN_KEY_ID: ${{ vars.PREVIEW_ENV_PROXYGEN_KEY_ID }}
   PROXYGEN_CLIENT_ID: ${{ vars.PREVIEW_ENV_PROXYGEN_CLIENT_ID }}
   PROXYGEN_API_NAME: ${{ vars.PROXYGEN_API_NAME }}
-  BASE_URL: "https://internal-dev.api.service.nhs.uk/pathology-laboratory-reporting-pr-32"
+  BASE_URL: 'https://internal-dev.api.service.nhs.uk/${{ env.PROXYGEN_API_NAME }}-pr-${{ github.event.pull_request.number }}'
   ENV: "remote"
   PR_NUMBER: ${{ github.event.pull_request.number }}
 
@@ -332,23 +332,23 @@ jobs:
       - name: "Rename coverage XML with unique name"
         run: |
           cd pathology-api/test-artefacts
-          mv coverage-merged.xml ${{ needs.create-coverage-name.outputs.coverage-name }}.xml
+          mv coverage-merged.xml ${{ steps.create-name.outputs.artefact-name }}.xml
       - name: "Upload combined coverage report"
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ needs.create-coverage-name.outputs.coverage-name }}
+          name: ${{ steps.create-name.outputs.artefact-name }}
           path: pathology-api/test-artefacts
           retention-days: 30
 
       - name: "Checkout code"
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           fetch-depth: 0 # Full history is needed for better analysis
       - name: "Download merged coverage report"
         uses: actions/download-artifact@v7
         with:
-          name: ${{ needs.create-coverage-name.outputs.coverage-name }}
+          name: ${{ steps.create-name.outputs.artefact-name }}
           path: coverage-reports/
       - name: "SonarCloud Scan"
         uses: SonarSource/sonarqube-scan-action@v7
@@ -358,7 +358,7 @@ jobs:
           args: >
             -Dsonar.organization=${{ vars.SONAR_ORGANISATION_KEY }}
             -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
-            -Dsonar.python.coverage.reportPaths=coverage-reports/${{ needs.create-coverage-name.outputs.coverage-name }}.xml
+            -Dsonar.python.coverage.reportPaths=coverage-reports/${{ steps.create-name.outputs.artefact-name }}.xml
 
       - name: Comment function name on PR
         if: github.event_name == 'pull_request' && github.event.action != 'closed'
@@ -367,7 +367,7 @@ jobs:
           script: |
             const fn = '${{ steps.names.outputs.function_name }}';
             const url = '${{ steps.names.outputs.preview_url }}';
-            const proxy_url = 'https://internal-dev.api.service.nhs.uk/${{ env.PROXYGEN_API_NAME }}-pr-${{ github.event.pull_request.number }}';
+            const proxy_url = ${{ env.BASE_URL }}
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const issueNumber = context.issue.number;
