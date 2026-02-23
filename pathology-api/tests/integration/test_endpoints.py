@@ -17,7 +17,7 @@ class TestBundleEndpoint:
             type="document",
             entry=[
                 Bundle.Entry(
-                    fullUrl="patient",
+                    fullUrl="composition",
                     resource=Composition.create(
                         subject=LogicalReference(
                             PatientIdentifier.from_nhs_number("nhs_number")
