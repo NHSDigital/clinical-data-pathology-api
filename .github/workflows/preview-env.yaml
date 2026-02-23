@@ -23,7 +23,7 @@ env:
   PROXYGEN_KEY_ID: ${{ vars.PREVIEW_ENV_PROXYGEN_KEY_ID }}
   PROXYGEN_CLIENT_ID: ${{ vars.PREVIEW_ENV_PROXYGEN_CLIENT_ID }}
   PROXYGEN_API_NAME: ${{ vars.PROXYGEN_API_NAME }}
-  BASE_URL: 'https://internal-dev.api.service.nhs.uk/${{ env.PROXYGEN_API_NAME }}-pr-${{ github.event.pull_request.number }}'
+  BASE_URL: 'https://internal-dev.api.service.nhs.uk/${{ vars.PROXYGEN_API_NAME }}-pr-${{ github.event.pull_request.number }}'
   ENV: "remote"
   PR_NUMBER: ${{ github.event.pull_request.number }}
 
