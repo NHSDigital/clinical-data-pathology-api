@@ -367,7 +367,7 @@ jobs:
           script: |
             const fn = '${{ steps.names.outputs.function_name }}';
             const url = '${{ steps.names.outputs.preview_url }}';
-            const proxy_url = ${{ env.BASE_URL }}
+            const proxy_url = '${{ env.BASE_URL }}';
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const issueNumber = context.issue.number;
