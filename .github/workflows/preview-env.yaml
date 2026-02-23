@@ -16,9 +16,11 @@ permissions:
 env:
   AWS_REGION: eu-west-2
   PREVIEW_PREFIX: pr-
+  MOCK_PREFIX: mock-
   PYTHON_VERSION: 3.14
   LAMBDA_RUNTIME: python3.14
   LAMBDA_HANDLER: lambda_handler.handler
+  MOCK_LAMBDA_HANDLER: handler.handler
   MTLS_SECRET_NAME: ${{ vars.PREVIEW_ENV_MTLS_SECRET_NAME }}
   PROXYGEN_KEY_ID: ${{ vars.PREVIEW_ENV_PROXYGEN_KEY_ID }}
   PROXYGEN_CLIENT_ID: ${{ vars.PREVIEW_ENV_PROXYGEN_CLIENT_ID }}
@@ -49,6 +51,14 @@ jobs:
       - name: Package artifact
         run: |
           make build
+
+      # Place holder mock artifact packaging to allow testing of mock API in preview environment;
+      # can be extended to build a real mock Lambda if needed
+      - name: Package mock artifact
+        run: |
+          cd infrastructure/environments/preview
+          rm -f mock_artifact.zip
+          zip -r mock_artifact.zip .
 
       - name: Select AWS role inputs
         id: role-select
@@ -88,25 +98,51 @@ jobs:
         run: |
           SAFE=${{ steps.branch.outputs.safe }}
           PREFIX=${{ env.PREVIEW_PREFIX }}
-          MAX_FN_LEN=64
-          MAX_SAFE_LEN=$((MAX_FN_LEN - ${#PREFIX}))
+          MOCK_PREFIX=${{ env.MOCK_PREFIX }}
+          MAX_FN_LEN=62
+          MAX_PREFIX_LEN=${#PREFIX}
+          if [ ${#MOCK_PREFIX} -gt "$MAX_PREFIX_LEN" ]; then
+            MAX_PREFIX_LEN=${#MOCK_PREFIX}
+          fi
+          MAX_SAFE_LEN=$((MAX_FN_LEN - MAX_PREFIX_LEN))
           if [ ${#SAFE} -gt "$MAX_SAFE_LEN" ]; then
             SAFE=${SAFE:0:MAX_SAFE_LEN}
           fi
           FN="${PREFIX}${SAFE}"
+          MFN="${MOCK_PREFIX}${SAFE}"
           echo "function_name=$FN" >> "$GITHUB_OUTPUT"
+          echo "mock_function_name=$MFN" >> "$GITHUB_OUTPUT"
           URL="https://${SAFE}.dev.endpoints.${{ env.PROXYGEN_API_NAME }}.national.nhs.uk"
+          MOCK_URL="https://${SAFE}.m.dev.endpoints.${{ env.PROXYGEN_API_NAME }}.national.nhs.uk"
           echo "preview_url=$URL" >> "$GITHUB_OUTPUT"
+          echo "mock_preview_url=$MOCK_URL" >> "$GITHUB_OUTPUT"
 
+      # ---------- Handle application ----------
       - name: Create or update preview Lambda (on open/sync/reopen)
         if: github.event.action != 'closed'
+        env:
+          MOCK_URL: ${{ steps.names.outputs.mock_preview_url }}
+          EXPIRY_THRESHOLD: ${{ secrets.APIM_TOKEN_EXPIRY_THRESHOLD }}
+          JWKS_SECRET: ${{ secrets.JWKS_SECRET }}
+          APIM_PRIVATE_KEY: ${{ secrets.APIM_PRIVATE_KEY }}
+          APIM_APIKEY: ${{ secrets.APIM_APIKEY }}
+          API_MTLS_CERT: ${{ secrets.API_MTLS_CERT }}
+          API_MTLS_KEY: ${{ secrets.API_MTLS_KEY }}
         run: |
           cd pathology-api/target/
           FN="${{ steps.names.outputs.function_name }}"
+          EXPIRY_THRESHOLD="${TOKEN_EXPIRY_THRESHOLD:-30s}"
+          JWKS_SECRET="${JWKS_SECRET_NAME:-/cds/pathology/dev/jwks/secret}"
+          PRIVATE_KEY="${APIM_PRIVATE_KEY:-/cds/pathology/dev/apim/private-key}"
+          API_KEY="${APIM_APIKEY:-/cds/pathology/dev/apim/api-key}"
+          MTLS_CERT="${API_MTLS_CERT:-/cds/pathology/dev/mtls/client1-key-public}"
+          MTLS_KEY="${API_MTLS_KEY:-/cds/pathology/dev/mtls/client1-key-secret}"
           echo "Deploying preview function: $FN"
           wait_for_lambda_ready() {
             while true; do
-            status=$(aws lambda get-function-configuration --function-name "$FN" --query 'LastUpdateStatus' --output text 2>/dev/null || echo "Unknown")
+            status=$(aws lambda get-function-configuration --function-name "$FN" \
+                        --query 'LastUpdateStatus' \
+                        --output text 2>/dev/null || echo "Unknown")
             if [ "$status" = "Successful" ] || [ "$status" = "Unknown" ]; then
               break
             fi
@@ -120,15 +156,36 @@ jobs:
           }
           if aws lambda get-function --function-name "$FN" >/dev/null 2>&1; then
             wait_for_lambda_ready
-            aws lambda update-function-configuration --function-name "$FN" --handler "${{ env.LAMBDA_HANDLER }}" || true
+            aws lambda update-function-configuration --function-name "$FN" \
+              --handler "${{ env.LAMBDA_HANDLER }}" \
+              --environment "Variables={APIM_TOKEN_EXPIRY_THRESHOLD=$EXPIRY_THRESHOLD, \
+                                        APIM_PRIVATE_KEY_NAME=$PRIVATE_KEY, \
+                                        APIM_API_KEY_NAME=$API_KEY, \
+                                        APIM_MTLS_CERT_NAME=$MTLS_CERT, \
+                                        APIM_MTLS_KEY_NAME=$MTLS_KEY, \
+                                        APIM_TOKEN_URL=$MOCK_URL/apim, \
+                                        PDM_BUNDLE_URL=$MOCK_URL/pdm, \
+                                        MNS_EVENT_URL=$MOCK_URL/mns, \
+                                        JWKS_SECRET_NAME=$JWKS_SECRET}" || true
             wait_for_lambda_ready
-            aws lambda update-function-code --function-name "$FN" --zip-file "fileb://artifact.zip" --publish
+            aws lambda update-function-code --function-name "$FN" \
+              --zip-file "fileb://artifact.zip" \
+              --publish
           else
             aws lambda create-function --function-name "$FN" \
               --runtime "${{ env.LAMBDA_RUNTIME }}" \
               --handler "${{ env.LAMBDA_HANDLER }}" \
               --zip-file "fileb://artifact.zip" \
               --role "${{ steps.role-select.outputs.lambda_role }}" \
+              --environment "Variables={APIM_TOKEN_EXPIRY_THRESHOLD=$EXPIRY_THRESHOLD, \
+                                        APIM_PRIVATE_KEY_NAME=$PRIVATE_KEY, \
+                                        APIM_API_KEY_NAME=$API_KEY, \
+                                        APIM_MTLS_CERT_NAME=$MTLS_CERT, \
+                                        APIM_MTLS_KEY_NAME=$MTLS_KEY, \
+                                        APIM_TOKEN_URL=$MOCK_URL/apim, \
+                                        PDM_BUNDLE_URL=$MOCK_URL/pdm, \
+                                        MNS_EVENT_URL=$MOCK_URL/mns, \
+                                        JWKS_SECRET_NAME=$JWKS_SECRET}" \
               --publish
             wait_for_lambda_ready
           fi
@@ -144,6 +201,65 @@ jobs:
         run: |
           echo "function = ${{ steps.names.outputs.function_name }}"
           echo "url      = ${{ steps.names.outputs.preview_url }}"
+
+      # ---------- Handle mock endpoints ----------
+      - name: Create or update mock Lambda (on open/sync/reopen)
+        if: github.event.action != 'closed'
+        env:
+          TOKEN_EXPIRY_TIME: ${{ secrets.TOKEN_LIFETIME }}
+        run: |
+          cd infrastructure/environments/preview
+          MFN="${{ steps.names.outputs.mock_function_name }}"
+          SAFE="${{ steps.branch.outputs.safe }}"
+          TOKEN_LIFETIME="${TOKEN_EXPIRY_TIME:-15m}"
+          echo "Deploying mock function: $MFN"
+          wait_for_lambda_ready() {
+            while true; do
+            status=$(aws lambda get-function-configuration --function-name "$MFN" --query 'LastUpdateStatus' --output text 2>/dev/null || echo "Unknown")
+            if [ "$status" = "Successful" ] || [ "$status" = "Unknown" ]; then
+              break
+            fi
+            if [ "$status" = "Failed" ]; then
+              echo "Lambda is in Failed state; check logs." >&2
+              exit 1
+            fi
+            echo "Lambda update status: $status — waiting..."
+            sleep 5
+          done
+          }
+          if aws lambda get-function --function-name "$MFN" >/dev/null 2>&1; then
+            wait_for_lambda_ready
+            aws lambda update-function-configuration --function-name "$MFN" \
+              --handler "${{ env.MOCK_LAMBDA_HANDLER }}" \
+              --environment "Variables={CLIENT_PUBLIC_KEY_ARN=mock, \
+                                        DDB_INDEX_TAG=$SAFE, \
+                                        TOKEN_LIFETIME=$TOKEN_LIFETIME}" || true
+            wait_for_lambda_ready
+            aws lambda update-function-code --function-name "$MFN" --zip-file "fileb://mock_artifact.zip" --publish
+          else
+            aws lambda create-function --function-name "$MFN" \
+              --runtime "${{ env.LAMBDA_RUNTIME }}" \
+              --handler "${{ env.MOCK_LAMBDA_HANDLER }}" \
+              --zip-file "fileb://mock_artifact.zip" \
+              --role "${{ steps.role-select.outputs.lambda_role }}" \
+              --environment "Variables={CLIENT_PUBLIC_KEY_ARN=mock, \
+                                        DDB_INDEX_TAG=$SAFE, \
+                                        TOKEN_LIFETIME=$TOKEN_LIFETIME}" \
+              --publish
+            wait_for_lambda_ready
+          fi
+
+      - name: Delete mock Lambda (on PR closed)
+        if: github.event.action == 'closed'
+        run: |
+          MFN="${{ steps.names.outputs.mock_function_name }}"
+          echo "Deleting mock function:  $MFN"
+          aws lambda delete-function --function-name "$MFN" || true
+
+      - name: Output mock function name
+        run: |
+          echo "mock_function = ${{ steps.names.outputs.mock_function_name }}"
+          echo "mock_url      = ${{ steps.names.outputs.mock_preview_url }}"
 
       # ---------- Wait on AWS tasks and notify ----------
       - name: Get mTLS certs for testing
@@ -207,6 +323,57 @@ jobs:
           echo "http_result=unexpected-status" >> "$GITHUB_OUTPUT"
           exit 0
 
+      - name: Smoke test mock URL
+        if: github.event.action != 'closed'
+        id: smoke-mock
+        env:
+          PREVIEW_URL: ${{ steps.names.outputs.mock_preview_url }}
+        run: |
+          if [ -z "$PREVIEW_URL" ] || [ "$PREVIEW_URL" = "null" ]; then
+            echo "Mock URL missing"
+            echo "http_status=missing" >> "$GITHUB_OUTPUT"
+            echo "http_result=missing-url" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Reachability check: allow 404 (app routes might not exist yet) but fail otherwise
+          printf '%s' "$_cds_pathology_dev_mtls_client1_key_secret" > /tmp/client1-key.pem
+          printf '%s' "$_cds_pathology_dev_mtls_client1_key_public" > /tmp/client1-cert.pem
+          STATUS=$(curl \
+                      --cert /tmp/client1-cert.pem \
+                      --key /tmp/client1-key.pem \
+                      --silent \
+                      --output /tmp/preview.headers \
+                      --write-out '%{http_code}' \
+                      --head \
+                      --max-time 30 \
+                      -X GET "$PREVIEW_URL"/_status || true)
+          rm -f /tmp/client1-key.pem
+          rm -f /tmp/client1-cert.pem
+
+          if [ "$STATUS" = "404" ]; then
+            echo "Mock responded with expected 404"
+            echo "http_status=404" >> "$GITHUB_OUTPUT"
+            echo "http_result=allowed-404" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "$STATUS" =~ ^[0-9]{3}$ ]] && [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then
+            echo "Mock responded with status $STATUS"
+            echo "http_status=$STATUS" >> "$GITHUB_OUTPUT"
+            echo "http_result=success" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Mock responded with unexpected status $STATUS"
+          if [ -f /tmp/preview.headers ]; then
+            echo "Response headers:"
+            cat /tmp/preview.headers
+          fi
+          echo "http_status=$STATUS" >> "$GITHUB_OUTPUT"
+          echo "http_result=unexpected-status" >> "$GITHUB_OUTPUT"
+          exit 0
+
       - name: Get proxygen machine user details
         id: proxygen-machine-user
         uses: aws-actions/aws-secretsmanager-get-secrets@a9a7eb4e2f2871d30dc5b892576fde60a2ecc802
@@ -220,7 +387,7 @@ jobs:
         with:
           mtls-secret-name: ${{ env.MTLS_SECRET_NAME }}
           target-url: ${{ steps.names.outputs.preview_url }}
-          proxy-base-path: '${{ env.PROXYGEN_API_NAME }}-pr-${{ github.event.pull_request.number }}'
+          proxy-base-path: "${{ env.PROXYGEN_API_NAME }}-pr-${{ github.event.pull_request.number }}"
           proxygen-key-secret: ${{ env._cds_pathology_dev_proxygen_proxygen_key_secret }}
           proxygen-key-id: ${{ env.PROXYGEN_KEY_ID }}
           proxygen-client-id: ${{ env.PROXYGEN_CLIENT_ID }}
@@ -230,7 +397,7 @@ jobs:
         if: github.event.action == 'closed'
         uses: ./.github/actions/proxy/tear-down-proxy
         with:
-          proxy-base-path: '${{ env.PROXYGEN_API_NAME }}-pr-${{ github.event.pull_request.number }}'
+          proxy-base-path: "${{ env.PROXYGEN_API_NAME }}-pr-${{ github.event.pull_request.number }}"
           proxygen-key-secret: ${{ env._cds_pathology_dev_proxygen_proxygen_key_secret }}
           proxygen-key-id: ${{ env.PROXYGEN_KEY_ID }}
           proxygen-client-id: ${{ env.PROXYGEN_CLIENT_ID }}
@@ -242,13 +409,17 @@ jobs:
         with:
           script: |
             const fn = '${{ steps.names.outputs.function_name }}';
+            const mock_fn = '${{ steps.names.outputs.mock_function_name }}';
             const url = '${{ steps.names.outputs.preview_url }}';
+            const mock_url = '${{ steps.names.outputs.mock_preview_url }}';
             const proxy_url = 'https://internal-dev.api.service.nhs.uk/${{ env.PROXYGEN_API_NAME }}-pr-${{ github.event.pull_request.number }}';
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const issueNumber = context.issue.number;
             const smokeStatus = '${{ steps.smoke-test.outputs.http_status }}' || 'n/a';
             const smokeResult = '${{ steps.smoke-test.outputs.http_result }}' || 'not-run';
+            const smokeMockStatus = '${{ steps.smoke-mock.outputs.http_status }}' || 'n/a';
+            const smokeMockResult = '${{ steps.smoke-mock.outputs.http_result }}' || 'not-run';
 
             const smokeLabels = {
               success: ':white_check_mark: Passed',
@@ -258,7 +429,7 @@ jobs:
             };
 
             const smokeReadable = smokeLabels[smokeResult] ?? smokeResult;
-
+            const smokeMockReadable = smokeLabels[smokeMockResult] ?? smokeMockResult;
             const { data: comments } = await github.rest.issues.listComments({
               owner,
               repo,
@@ -281,10 +452,13 @@ jobs:
 
             const lines = [
               '**Deployment Complete**',
-              `- Preview URL: [${url}](${url}) — [Status endpoint](${url}/_status)`,
-              `- Smoke Test: ${smokeReadable} (HTTP ${smokeStatus})`,
+              `- Preview URL: [${url}](${url}) — [Status](${url}/_status)`,
+              `  - Smoke Test: ${smokeReadable} (HTTP ${smokeStatus})`,
+              `- Mock URL: [${mock_url}](${mock_url})`,
+              `  - Smoke Mock Test: ${smokeMockReadable} (HTTP ${smokeMockStatus})`,
               `- Proxy URL: [${proxy_url}](${proxy_url})`,
               `- Lambda Function: ${fn}`,
+              `- Mock Lambda Function: ${mock_fn}`,
             ];
 
             await github.rest.issues.createComment({
