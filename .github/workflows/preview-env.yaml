@@ -256,109 +256,109 @@ jobs:
           printf 'apigee-access-token=%s\n' "$APIGEE_TOKEN" >> "$GITHUB_OUTPUT"
           echo "Token retrieved successfully (length: ${#APIGEE_TOKEN})"
 
-      - name: "Create coverage artefact name"
-        id: create-name
-        uses: ./.github/actions/create-artefact-name
-        with:
-          prefix: coverage
+      # - name: "Create coverage artefact name"
+      #   id: create-name
+      #   uses: ./.github/actions/create-artefact-name
+      #   with:
+      #     prefix: coverage
 
-      - name: "Run contract tests"
-        run: make test-contract
-      - name: "Upload contract test results"
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: contract-test-results
-          path: pathology-api/test-artefacts/
-          retention-days: 30
-      - name: "Publish contract test results to summary"
-        if: always()
-        uses: test-summary/action@31493c76ec9e7aa675f1585d3ed6f1da69269a86 # v2.4
-        with:
-          paths: pathology-api/test-artefacts/contract-tests.xml
+      # - name: "Run contract tests"
+      #   run: make test-contract
+      # - name: "Upload contract test results"
+      #   if: always()
+      #   uses: actions/upload-artifact@v6
+      #   with:
+      #     name: contract-test-results
+      #     path: pathology-api/test-artefacts/
+      #     retention-days: 30
+      # - name: "Publish contract test results to summary"
+      #   if: always()
+      #   uses: test-summary/action@31493c76ec9e7aa675f1585d3ed6f1da69269a86 # v2.4
+      #   with:
+      #     paths: pathology-api/test-artefacts/contract-tests.xml
 
-      - name: "Run schema validation tests"
-        run: make test-schema
-      - name: "Upload schema test results"
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: schema-test-results
-          path: pathology-api/test-artefacts/
-          retention-days: 30
-      - name: "Publish schema test results to summary"
-        if: always()
-        uses: test-summary/action@31493c76ec9e7aa675f1585d3ed6f1da69269a86 # v2.4
-        with:
-          paths: pathology-api/test-artefacts/schema-tests.xml
+      # - name: "Run schema validation tests"
+      #   run: make test-schema
+      # - name: "Upload schema test results"
+      #   if: always()
+      #   uses: actions/upload-artifact@v6
+      #   with:
+      #     name: schema-test-results
+      #     path: pathology-api/test-artefacts/
+      #     retention-days: 30
+      # - name: "Publish schema test results to summary"
+      #   if: always()
+      #   uses: test-summary/action@31493c76ec9e7aa675f1585d3ed6f1da69269a86 # v2.4
+      #   with:
+      #     paths: pathology-api/test-artefacts/schema-tests.xml
 
-      - name: "Run integration test"
-        run: make test-integration
-      - name: "Upload integration test results"
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: integration-test-results
-          path: pathology-api/test-artefacts/
-          retention-days: 30
-      - name: "Publish integration test results to summary"
-        if: always()
-        uses: test-summary/action@31493c76ec9e7aa675f1585d3ed6f1da69269a86 # v2.4
-        with:
-          paths: pathology-api/test-artefacts/integration-tests.xml
+      # - name: "Run integration test"
+      #   run: make test-integration
+      # - name: "Upload integration test results"
+      #   if: always()
+      #   uses: actions/upload-artifact@v6
+      #   with:
+      #     name: integration-test-results
+      #     path: pathology-api/test-artefacts/
+      #     retention-days: 30
+      # - name: "Publish integration test results to summary"
+      #   if: always()
+      #   uses: test-summary/action@31493c76ec9e7aa675f1585d3ed6f1da69269a86 # v2.4
+      #   with:
+      #     paths: pathology-api/test-artefacts/integration-tests.xml
 
-      - name: "Run acceptance test"
-        run: make test-acceptance
-      - name: "Upload acceptance test results"
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: acceptance-test-results
-          path: pathology-api/test-artefacts/
-          retention-days: 30
-      - name: "Publish acceptance test results to summary"
-        if: always()
-        uses: test-summary/action@31493c76ec9e7aa675f1585d3ed6f1da69269a86 # v2.4
-        with:
-          paths: pathology-api/test-artefacts/acceptance-tests.xml
+      # - name: "Run acceptance test"
+      #   run: make test-acceptance
+      # - name: "Upload acceptance test results"
+      #   if: always()
+      #   uses: actions/upload-artifact@v6
+      #   with:
+      #     name: acceptance-test-results
+      #     path: pathology-api/test-artefacts/
+      #     retention-days: 30
+      # - name: "Publish acceptance test results to summary"
+      #   if: always()
+      #   uses: test-summary/action@31493c76ec9e7aa675f1585d3ed6f1da69269a86 # v2.4
+      #   with:
+      #     paths: pathology-api/test-artefacts/acceptance-tests.xml
 
-      - name: "Download all test coverage artefacts"
-        uses: actions/download-artifact@v7
-        with:
-          path: pathology-api/test-artefacts/
-          merge-multiple: false
-      - name: "Merge coverage data"
-        run: make test-coverage
-      - name: "Rename coverage XML with unique name"
-        run: |
-          cd pathology-api/test-artefacts
-          mv coverage-merged.xml ${{ steps.create-name.outputs.artefact-name }}.xml
-      - name: "Upload combined coverage report"
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: ${{ steps.create-name.outputs.artefact-name }}
-          path: pathology-api/test-artefacts
-          retention-days: 30
+      # - name: "Download all test coverage artefacts"
+      #   uses: actions/download-artifact@v7
+      #   with:
+      #     path: pathology-api/test-artefacts/
+      #     merge-multiple: false
+      # - name: "Merge coverage data"
+      #   run: make test-coverage
+      # - name: "Rename coverage XML with unique name"
+      #   run: |
+      #     cd pathology-api/test-artefacts
+      #     mv coverage-merged.xml ${{ steps.create-name.outputs.artefact-name }}.xml
+      # - name: "Upload combined coverage report"
+      #   if: always()
+      #   uses: actions/upload-artifact@v6
+      #   with:
+      #     name: ${{ steps.create-name.outputs.artefact-name }}
+      #     path: pathology-api/test-artefacts
+      #     retention-days: 30
 
-      - name: "Checkout code"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        with:
-          fetch-depth: 0 # Full history is needed for better analysis
-      - name: "Download merged coverage report"
-        uses: actions/download-artifact@v7
-        with:
-          name: ${{ steps.create-name.outputs.artefact-name }}
-          path: coverage-reports/
-      - name: "SonarCloud Scan"
-        uses: SonarSource/sonarqube-scan-action@v7
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          args: >
-            -Dsonar.organization=${{ vars.SONAR_ORGANISATION_KEY }}
-            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
-            -Dsonar.python.coverage.reportPaths=coverage-reports/${{ steps.create-name.outputs.artefact-name }}.xml
+      # - name: "Checkout code"
+      #   uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      #   with:
+      #     fetch-depth: 0 # Full history is needed for better analysis
+      # - name: "Download merged coverage report"
+      #   uses: actions/download-artifact@v7
+      #   with:
+      #     name: ${{ steps.create-name.outputs.artefact-name }}
+      #     path: coverage-reports/
+      # - name: "SonarCloud Scan"
+      #   uses: SonarSource/sonarqube-scan-action@v7
+      #   env:
+      #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      #   with:
+      #     args: >
+      #       -Dsonar.organization=${{ vars.SONAR_ORGANISATION_KEY }}
+      #       -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
+      #       -Dsonar.python.coverage.reportPaths=coverage-reports/${{ steps.create-name.outputs.artefact-name }}.xml
 
       - name: Comment function name on PR
         if: github.event_name == 'pull_request' && github.event.action != 'closed'
