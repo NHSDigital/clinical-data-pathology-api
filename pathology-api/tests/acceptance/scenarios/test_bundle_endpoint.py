@@ -17,3 +17,15 @@ def test_send_valid_bundle() -> None:
 def test_sending_invalid_bundle() -> None:
     # No body required here as this method simply provides a binding to the BDD step
     pass
+
+
+@scenario("bundle_endpoint.feature", "Send a bundle with missing Composition")
+def test_send_a_bundle_with_missing_composition() -> None:
+    # No body required here as this method simply provides a binding to the BDD step
+    pass
+
+
+@scenario("bundle_endpoint.feature", "Send a bundle with incorrect bundle type")
+def test_sending_incorrect_bundle_type() -> None:
+    # No body required here as this method simply provides a binding to the BDD step
+    pass

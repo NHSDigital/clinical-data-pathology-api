@@ -67,8 +67,42 @@ def step_send_invalid_bundle(client: Client, response_context: ResponseContext) 
     )
 
 
+@when("I send a Bundle with missing Composition to the Pathology API")
+def step_send_bundle_without_composition(
+    client: Client, response_context: ResponseContext
+) -> None:
+    bundle = Bundle.create(
+        type="document",
+        entry=[],  # Missing required Composition
+    )
+
+    response_context.response = client.send(
+        path="FHIR/R4/Bundle",
+        request_method="POST",
+        data=bundle.model_dump_json(by_alias=True, exclude_none=True),
+    )
+
+
+@when(parsers.cfparse('I send a Bundle with type "{bundle_type}" to the Pathology API'))
+def step_send_bundle_wrong_type(
+    client: Client,
+    response_context: ResponseContext,
+    bundle_type: str,
+) -> None:
+    bundle = Bundle.create(
+        type=bundle_type,
+        entry=[],
+    )
+
+    response_context.response = client.send(
+        path="FHIR/R4/Bundle",
+        request_method="POST",
+        data=bundle.model_dump_json(by_alias=True, exclude_none=True),
+    )
+
+
 # fmt: off
-@then(parsers.cfparse("the response status code should be {expected_status:d}",extra_types={"expected_status": int}))  # noqa: E501 - BDD steps must be declared on a singular line.
+@then(parsers.cfparse("the response status code should be {expected_status:d}",extra_types={"expected_status": int})) # noqa: E501 - BDD steps must be declared on a singular line.
 # fmt: on
 def step_check_status_code(
     response_context: ResponseContext, expected_status: int
