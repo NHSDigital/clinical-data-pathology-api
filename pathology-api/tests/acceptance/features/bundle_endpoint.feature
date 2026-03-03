@@ -14,3 +14,11 @@ Feature: pathology Bundle API
   Scenario: Sending an invalid bundle
     When I send an invalid Bundle to the Pathology API
     Then the response status code should be 400
+
+  Scenario: Send a bundle with missing Composition
+    When I send a Bundle with missing Composition to the Pathology API
+    Then the response status code should be 400
+
+  Scenario: Send a bundle with incorrect bundle type
+    When I send a Bundle with type "transaction" to the Pathology API
+    Then the response status code should be 400
