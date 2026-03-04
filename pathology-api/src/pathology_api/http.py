@@ -1,13 +1,22 @@
+import functools
+import tempfile
+from collections.abc import Callable
+from contextlib import ExitStack
 from datetime import timedelta
-from typing import Any, TypedDict
+from typing import Any, Concatenate, TypedDict
 
 import requests
 from requests.adapters import HTTPAdapter
 
+# Type alias describing the expected signature for a request making a HTTP request.
+# Any function that takes a `requests.Session` as its first argument, followed by any
+# number of additional arguments, and returns any type of value.
+type RequestMethod[**P, S] = Callable[Concatenate[requests.Session, P], S]
+
 
 class ClientCertificate(TypedDict):
-    certificate_path: str
-    key_path: str
+    certificate: str
+    key: str
 
 
 class SessionManager:
@@ -38,16 +47,37 @@ class SessionManager:
         self._client_adapter = self._Adapter(timeout=client_timeout.total_seconds())
         self._client_certificate = client_certificate
 
-    def open_session(self) -> requests.Session:
-        session = requests.Session()
+    def with_session[**P, S](self, func: RequestMethod[P, S]) -> Callable[P, S]:
+        @functools.wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            with ExitStack() as stack:
+                session = requests.Session()
+                stack.enter_context(session)
 
-        if self._client_certificate is not None:
-            session.cert = (
-                self._client_certificate["certificate_path"],
-                self._client_certificate["key_path"],
-            )
+                session.mount("https://", self._client_adapter)
 
-        session.mount("https://", self._client_adapter)
-        session.mount("http://", self._client_adapter)
+                if self._client_certificate is not None:
+                    # File added to Exit stack to will be automatically cleaned up with
+                    # the stack.
+                    cert_file = tempfile.NamedTemporaryFile(  # noqa: SIM115
+                        dir="/tmp/pathology", delete=True
+                    )
+                    stack.enter_context(cert_file)
 
-        return session
+                    # File added to Exit stack to will be automatically cleaned up with
+                    # the stack.
+                    key_file = tempfile.NamedTemporaryFile(  # noqa: SIM115
+                        dir="/tmp/pathology", delete=True
+                    )
+                    stack.enter_context(key_file)
+
+                    cert_file.write(self._client_certificate["certificate"].encode())
+                    cert_file.flush()
+                    key_file.write(self._client_certificate["key"].encode())
+                    key_file.flush()
+
+                    session.cert = (cert_file.name, key_file.name)
+
+                return func(session, *args, **kwargs)
+
+        return wrapper

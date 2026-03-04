@@ -1,23 +1,20 @@
+import functools
 import uuid
 from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
-from typing import Any, Concatenate, TypedDict
+from typing import Any, TypedDict
 
 import jwt
 import requests
 
-from pathology_api.http import SessionManager
+from pathology_api.http import RequestMethod, SessionManager
+from pathology_api.logging import get_logger
+
+_logger = get_logger(__name__)
 
 
 class ApimAuthenticationException(Exception):
     pass
-
-
-# Type alias describing the expected signature for use with the `Authenticator.auth`
-# decorator.
-# Any function that takes a `requests.Session` as its first argument, followed by any
-# number of additional arguments, and returns any type of value.
-type AuthenticatedMethod[**P] = Callable[Concatenate[requests.Session, P], Any]
 
 
 class ApimAuthenticator:
@@ -43,15 +40,23 @@ class ApimAuthenticator:
 
         self.__access_token: ApimAuthenticator.__AccessToken | None = None
 
-    def auth[**P](
-        self, func: AuthenticatedMethod[P]
-    ) -> Callable[[AuthenticatedMethod[P]], AuthenticatedMethod[P]]:
+    def auth[**P, S](self, func: RequestMethod[P, S]) -> Callable[P, S]:
         """
         Decorate a given function with APIM authentication. This authentication will be
         provided via a `requests.Session` object.
         """
 
+        @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
+            @self._session_manager.with_session
+            def with_session(
+                session: requests.Session, access_token: ApimAuthenticator.__AccessToken
+            ) -> S:
+                session.headers.update(
+                    {"Authorization": f"Bearer {access_token['value']}"}
+                )
+                return func(session, *args, **kwargs)
+
             # If there isn't an access token yet, or the token will expire within the
             # token validity threshold, reauthenticate.
             if (
@@ -59,13 +64,10 @@ class ApimAuthenticator:
                 or self.__access_token["expiry"] - datetime.now(tz=timezone.utc)
                 < self._token_validity_threshold
             ):
+                _logger.debug("Authenticating with APIM...")
                 self.__access_token = self._authenticate()
 
-            with self._session_manager.open_session() as session:
-                session.headers.update(
-                    {"Authorization": f"Bearer {self.__access_token['value']}"}
-                )
-                return func(session, *args, **kwargs)
+            return with_session(self.__access_token)
 
         return wrapper
 
@@ -88,7 +90,8 @@ class ApimAuthenticator:
         )
 
     def _authenticate(self) -> __AccessToken:
-        with self._session_manager.open_session() as session:
+        @self._session_manager.with_session
+        def with_session(session: requests.Session) -> ApimAuthenticator.__AccessToken:
             response = session.post(
                 self._token_endpoint,
                 data={
@@ -97,6 +100,9 @@ class ApimAuthenticator:
                     ":client-assertion-type:jwt-bearer",
                     "client_assertion": self._create_client_assertion(),
                 },
+            )
+            _logger.debug(
+                "Sending authentication request to APIM: %s", self._token_endpoint
             )
 
             if response.status_code != 200:
@@ -107,9 +113,15 @@ class ApimAuthenticator:
                 )
 
             response_data = response.json()
+            _logger.debug(
+                "APIM authentication successful. Expiry: %s",
+                response_data["expires_in"],
+            )
 
             return {
                 "value": response_data["access_token"],
                 "expiry": datetime.now(tz=timezone.utc)
                 + timedelta(seconds=response_data["expires_in"]),
             }
+
+        return with_session()
