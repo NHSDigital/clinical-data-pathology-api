@@ -17,12 +17,39 @@ dockerNetwork := pathology-local
 # Example CI/CD targets are: dependencies, build, publish, deploy, clean, etc.
 
 .PHONY: dependencies
+.ONESHELL:
 dependencies: # Install dependencies needed to build and test the project @Pipeline
-	@cd pathology-api && poetry sync
-	@cd ../mocks && poetry sync
+	if [[ "$${IN_BUILD_CONTAINER}" == "true" ]]; then \
+		eval "$$(pyenv init -)"; \
+		pyenv activate pathology; \
+	fi
+
+	cd pathology-api && poetry sync
+	cd ../
+
+	if [[ "$${IN_BUILD_CONTAINER}" == "true" ]]; then \
+		pyenv deactivate pathology; \
+	fi
+
+	if [[ "$${IN_BUILD_CONTAINER}" == "true" ]]; then \
+		pyenv activate pathology-mocks; \
+	fi
+
+	cd mocks && poetry sync
+	cd ../
+
+	if [[ "$${IN_BUILD_CONTAINER}" == "true" ]]; then \
+		pyenv deactivate pathology-mocks; \
+	fi
 
 .PHONY: build-pathology
+.ONESHELL:
 build-pathology:
+	@if [[ "$${IN_BUILD_CONTAINER}" == "true" ]]; then \
+		eval "$$(pyenv init -)"; \
+		pyenv activate pathology; \
+	fi
+
 	@cd pathology-api
 	@echo "Starting build for pathology API..."
 	@echo "Running type checks..."
@@ -37,8 +64,18 @@ build-pathology:
 	@cd ./target/pathology-api
 	@zip -r "../artifact.zip" .
 
+	@if [[ "$${IN_BUILD_CONTAINER}" == "true" ]]; then \
+		pyenv deactivate pathology; \
+	fi
+
 .PHONY: build-mocks
+.ONESHELL:
 build-mocks:
+	@if [[ "$${IN_BUILD_CONTAINER}" == "true" ]]; then \
+		eval "$$(pyenv init -)"; \
+		pyenv activate pathology-mocks; \
+	fi
+
 	@cd mocks
 	@echo "Starting build for mocks..."
 	@echo "Running type checks..."
@@ -52,6 +89,10 @@ build-mocks:
 	@cp lambda_handler.py ./target/mocks/
 	@cd ./target/mocks
 	@zip -r "../artifact.zip" .
+
+	@if [[ "$${IN_BUILD_CONTAINER}" == "true" ]]; then \
+		pyenv deactivate pathology-mocks; \
+	fi
 
 .PHONY: build
 build: clean-artifacts dependencies build-pathology build-mocks
