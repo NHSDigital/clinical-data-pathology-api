@@ -1,0 +1,127 @@
+import functools
+import uuid
+from collections.abc import Callable
+from datetime import datetime, timedelta, timezone
+from typing import Any, TypedDict
+
+import jwt
+import requests
+
+from pathology_api.http import RequestMethod, SessionManager
+from pathology_api.logging import get_logger
+
+_logger = get_logger(__name__)
+
+
+class ApimAuthenticationException(Exception):
+    pass
+
+
+class ApimAuthenticator:
+    class __AccessToken(TypedDict):
+        value: str
+        expiry: datetime
+
+    def __init__(
+        self,
+        private_key: str,
+        key_id: str,
+        api_key: str,
+        token_validity_threshold: timedelta,
+        token_endpoint: str,
+        session_manager: SessionManager,
+    ):
+        self._private_key = private_key
+        self._key_id = key_id
+        self._api_key = api_key
+        self._token_validity_threshold = token_validity_threshold
+        self._token_endpoint = token_endpoint
+        self._session_manager = session_manager
+
+        self.__access_token: ApimAuthenticator.__AccessToken | None = None
+
+    def auth[**P, S](self, func: RequestMethod[P, S]) -> Callable[P, S]:
+        """
+        Decorate a given function with APIM authentication. This authentication will be
+        provided via a `requests.Session` object.
+        """
+
+        @functools.wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            @self._session_manager.with_session
+            def with_session(
+                session: requests.Session, access_token: ApimAuthenticator.__AccessToken
+            ) -> S:
+                session.headers.update(
+                    {"Authorization": f"Bearer {access_token['value']}"}
+                )
+                return func(session, *args, **kwargs)
+
+            # If there isn't an access token yet, or the token will expire within the
+            # token validity threshold, reauthenticate.
+            if (
+                self.__access_token is None
+                or self.__access_token["expiry"] - datetime.now(tz=timezone.utc)
+                < self._token_validity_threshold
+            ):
+                _logger.debug("Authenticating with APIM...")
+                self.__access_token = self._authenticate()
+
+            return with_session(self.__access_token)
+
+        return wrapper
+
+    def _create_client_assertion(self) -> str:
+        claims = {
+            "sub": self._api_key,
+            "iss": self._api_key,
+            "jti": str(uuid.uuid4()),
+            "aud": self._token_endpoint,
+            "exp": int(
+                (datetime.now(tz=timezone.utc) + timedelta(seconds=30)).timestamp()
+            ),
+        }
+
+        return jwt.encode(
+            claims,
+            self._private_key,
+            algorithm="RS512",
+            headers={"kid": self._key_id},
+        )
+
+    def _authenticate(self) -> __AccessToken:
+        @self._session_manager.with_session
+        def with_session(session: requests.Session) -> ApimAuthenticator.__AccessToken:
+            response = session.post(
+                self._token_endpoint,
+                data={
+                    "grant_type": "client_credentials",
+                    "client_assertion_type": "urn:ietf:params:oauth"
+                    ":client-assertion-type:jwt-bearer",
+                    "client_assertion": self._create_client_assertion(),
+                },
+            )
+            _logger.debug(
+                "Sending authentication request to APIM: %s", self._token_endpoint
+            )
+
+            if response.status_code != 200:
+                raise ApimAuthenticationException(
+                    f"Failed to authenticate with APIM. "
+                    f"Status code: {response.status_code}"
+                    f", Response: {response.text}"
+                )
+
+            response_data = response.json()
+            _logger.debug(
+                "APIM authentication successful. Expiry: %s",
+                response_data["expires_in"],
+            )
+
+            return {
+                "value": response_data["access_token"],
+                "expiry": datetime.now(tz=timezone.utc)
+                + timedelta(seconds=response_data["expires_in"]),
+            }
+
+        return with_session()
