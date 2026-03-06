@@ -4,18 +4,6 @@
   },
   "interactions": [
     {
-      "description": "a request for a non-existent route",
-      "pending": false,
-      "request": {
-        "method": "GET",
-        "path": "/nonexistent"
-      },
-      "response": {
-        "status": 404
-      },
-      "type": "Synchronous/HTTP"
-    },
-    {
       "description": "a request for the Bundle endpoint",
       "pending": false,
       "request": {
@@ -23,13 +11,15 @@
           "content": {
             "entry": [
               {
-                "fullUrl": "patient",
+                "fullUrl": "composition",
                 "resource": {
-                  "identifier": {
-                    "system": "https://fhir.nhs.uk/Id/nhs-number",
-                    "value": "nhs_number"
-                  },
-                  "resourceType": "Patient"
+                  "resourceType": "Composition",
+                  "subject": {
+                    "identifier": {
+                      "system": "https://fhir.nhs.uk/Id/nhs-number",
+                      "value": "nhs_number"
+                    }
+                  }
                 }
               }
             ],
@@ -52,20 +42,19 @@
           "content": {
             "entry": [
               {
-                "fullUrl": "patient",
+                "fullUrl": "composition",
                 "resource": {
-                  "identifier": {
-                    "system": "https://fhir.nhs.uk/Id/nhs-number",
-                    "value": "nhs_number"
-                  },
-                  "resourceType": "Patient"
+                  "resourceType": "Composition",
+                  "subject": {
+                    "identifier": {
+                      "system": "https://fhir.nhs.uk/Id/nhs-number",
+                      "value": "nhs_number"
+                    }
+                  }
                 }
               }
             ],
-            "identifier": {
-              "system": "https://tools.ietf.org/html/rfc4122",
-              "value": null
-            },
+            "id": null,
             "meta": {
               "lastUpdated": "2026-01-16T12:00:00.000Z"
             },
@@ -77,7 +66,7 @@
         },
         "generators": {
           "body": {
-            "$.identifier.value": {
+            "$.id": {
               "type": "Uuid"
             }
           }
@@ -89,7 +78,7 @@
         },
         "matchingRules": {
           "body": {
-            "$.identifier.value": {
+            "$.id": {
               "combine": "AND",
               "matchers": [
                 {
