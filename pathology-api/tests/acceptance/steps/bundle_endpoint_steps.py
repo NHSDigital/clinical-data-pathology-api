@@ -17,8 +17,9 @@ def step_api_is_running(client: Client) -> None:
         client: Test client from conftest.py
     """
     response = client.send_without_payload(path="_status", request_method="GET")
-    assert response.text == "OK"
+
     assert response.status_code == 200
+    assert response.json()["checks"]["healthcheck"]["outcome"] == "OK"
 
 
 @when("I send a valid Bundle to the Pathology API")
