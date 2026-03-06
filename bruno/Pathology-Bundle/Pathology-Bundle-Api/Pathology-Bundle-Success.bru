@@ -1,0 +1,40 @@
+meta {
+  name: Pathology-Bundle-Success-Test
+  type: http
+  seq: 1
+}
+
+post {
+  url: http://localhost:5002/FHIR/R4/Bundle
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+  "resourceType": "Bundle",
+    "type": "document",
+    "entry": [
+      {
+        "fullUrl": "patient",
+        "resource": {
+          "resourceType": "Patient",
+          "identifier": {
+            "system": "https://fhir.nhs.uk/Id/nhs-number",
+            "value": "nhs_number"
+          }
+        }
+      }
+    ]
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.type: eq document
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

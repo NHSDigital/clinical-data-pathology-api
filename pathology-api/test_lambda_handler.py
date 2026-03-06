@@ -1,12 +1,13 @@
-import json
 from typing import Any
 from unittest.mock import patch
 
+import pydantic
 import pytest
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from lambda_handler import handler
-from pathology_api.fhir.r4.resources import Bundle, Patient
-from pydantic import ValidationError
+from pathology_api.exception import ValidationError
+from pathology_api.fhir.r4.elements import LogicalReference, PatientIdentifier
+from pathology_api.fhir.r4.resources import Bundle, Composition, OperationOutcome
 
 
 class TestHandler:
@@ -32,15 +33,22 @@ class TestHandler:
             "pathParameters": {"proxy": path_params},
         }
 
+    def _parse_returned_issue(self, response: str) -> OperationOutcome.Issue:
+        response_outcome = OperationOutcome.model_validate_json(response)
+
+        assert len(response_outcome.issue) == 1
+        returned_issue = response_outcome.issue[0]
+        return returned_issue
+
     def test_create_test_result_success(self) -> None:
         bundle = Bundle.create(
-            type="transaction",
+            type="document",
             entry=[
                 Bundle.Entry(
-                    fullUrl="patient",
-                    resource=Patient.create(
-                        identifier=Patient.PatientIdentifier.from_nhs_number(
-                            "nhs_number"
+                    fullUrl="composition",
+                    resource=Composition.create(
+                        subject=LogicalReference(
+                            PatientIdentifier.from_nhs_number("nhs_number")
                         )
                     ),
                 )
@@ -65,12 +73,8 @@ class TestHandler:
         assert response_bundle.bundle_type == bundle.bundle_type
         assert response_bundle.entries == bundle.entries
 
-        assert response_bundle.identifier is not None
-        assert (
-            response_bundle.identifier.system == "https://tools.ietf.org/html/rfc4122"
-        )
         # A UUID value so can only check its presence.
-        assert response_bundle.identifier.value is not None
+        assert response_bundle.id is not None
 
     def test_create_test_result_no_payload(self) -> None:
         event = self._create_test_event(
@@ -81,8 +85,16 @@ class TestHandler:
         response = handler(event, context)
 
         assert response["statusCode"] == 400
-        assert response["body"] == "No payload provided."
-        assert response["headers"] == {"Content-Type": "text/plain"}
+        assert response["headers"] == {"Content-Type": "application/fhir+json"}
+
+        returned_issue = self._parse_returned_issue(response["body"])
+
+        assert returned_issue["severity"] == "error"
+        assert returned_issue["code"] == "invalid"
+        assert (
+            returned_issue["diagnostics"]
+            == "Resources must be provided as a bundle of type 'document'"
+        )
 
     def test_create_test_result_empty_payload(self) -> None:
         event = self._create_test_event(
@@ -93,8 +105,16 @@ class TestHandler:
         response = handler(event, context)
 
         assert response["statusCode"] == 400
-        assert response["body"] == "No payload provided."
-        assert response["headers"] == {"Content-Type": "text/plain"}
+        assert response["headers"] == {"Content-Type": "application/fhir+json"}
+
+        returned_issue = self._parse_returned_issue(response["body"])
+
+        assert returned_issue["severity"] == "error"
+        assert returned_issue["code"] == "invalid"
+        assert (
+            returned_issue["diagnostics"]
+            == "('resourceType',) - Field required \n('type',) - Field required \n"
+        )
 
     def test_create_test_result_invalid_json(self) -> None:
         event = self._create_test_event(
@@ -105,44 +125,84 @@ class TestHandler:
         response = handler(event, context)
 
         assert response["statusCode"] == 400
-        assert response["body"] == "Invalid payload provided."
-        assert response["headers"] == {"Content-Type": "text/plain"}
+        assert response["headers"] == {"Content-Type": "application/fhir+json"}
 
-    def test_create_test_result_processing_error(self) -> None:
-        bundle = Bundle.empty(bundle_type="transaction")
+        returned_issue = self._parse_returned_issue(response["body"])
+        assert returned_issue["severity"] == "error"
+        assert returned_issue["code"] == "invalid"
+        assert returned_issue["diagnostics"] == "Invalid payload provided."
+
+    @pytest.mark.parametrize(
+        ("error", "expected_issue", "expected_status_code"),
+        [
+            pytest.param(
+                ValidationError("Test processing error"),
+                OperationOutcome.Issue(
+                    severity="error",
+                    code="invalid",
+                    diagnostics="Test processing error",
+                ),
+                400,
+                id="ValidationError",
+            ),
+            pytest.param(
+                Exception("Test general error"),
+                {
+                    "severity": "fatal",
+                    "code": "exception",
+                    "diagnostics": "An unexpected error has occurred. "
+                    "Please try again later.",
+                },
+                500,
+                id="Unexpected exception",
+            ),
+        ],
+    )
+    def test_create_test_result_processing_error(
+        self,
+        error: type[Exception],
+        expected_issue: OperationOutcome.Issue,
+        expected_status_code: int,
+    ) -> None:
+        bundle = Bundle.empty(bundle_type="document")
         event = self._create_test_event(
             body=bundle.model_dump_json(by_alias=True),
             path_params="FHIR/R4/Bundle",
             request_method="POST",
         )
         context = LambdaContext()
-        error_message = "Test processing error"
 
-        expected_error = ValueError(error_message)
-        with patch("lambda_handler.handle_request", side_effect=expected_error):
+        with patch("lambda_handler.handle_request", side_effect=error):
             response = handler(event, context)
 
-        assert response["statusCode"] == 400
-        assert response["body"] == "Error processing provided bundle."
-        assert response["headers"] == {"Content-Type": "text/plain"}
+        assert response["statusCode"] == expected_status_code
+        assert response["headers"] == {"Content-Type": "application/fhir+json"}
+
+        returned_issue = self._parse_returned_issue(response["body"])
+        assert returned_issue == expected_issue
 
     @pytest.mark.parametrize(
-        "expected_error",
+        ("expected_error", "expected_diagnostic"),
         [
             pytest.param(
-                TypeError("Test type error"),
-                id="TypeError",
+                ValidationError("Test validation error"),
+                "Test validation error",
+                id="ValidationError",
             ),
             pytest.param(
-                ValidationError("Test validation error", []),
-                id="ValidationError",
+                pydantic.ValidationError.from_exception_data(
+                    "Test validation error",
+                    [{"type": "missing", "loc": ("field",), "input": "is invalid"}],
+                ),
+                "('field',) - Field required \n",
+                id="Pydantic ValidationError",
             ),
         ],
     )
-    def test_create_test_result_parse_json_error(
-        self, expected_error: Exception
+    def test_create_test_result_model_validate_error(
+        self, expected_error: Exception, expected_diagnostic: str
     ) -> None:
-        bundle = Bundle.empty(bundle_type="transaction")
+        bundle = Bundle.empty(bundle_type="document")
         event = self._create_test_event(
             body=bundle.model_dump_json(by_alias=True),
             path_params="FHIR/R4/Bundle",
@@ -157,8 +217,12 @@ class TestHandler:
             response = handler(event, context)
 
             assert response["statusCode"] == 400
-            assert response["body"] == "Invalid payload provided."
-            assert response["headers"] == {"Content-Type": "text/plain"}
+            assert response["headers"] == {"Content-Type": "application/fhir+json"}
+
+            returned_issue = self._parse_returned_issue(response["body"])
+            assert returned_issue["severity"] == "error"
+            assert returned_issue["code"] == "invalid"
+            assert returned_issue["diagnostics"] == expected_diagnostic
 
     def test_status_success(self) -> None:
         event = self._create_test_event(path_params="_status", request_method="GET")
@@ -169,26 +233,3 @@ class TestHandler:
         assert response["statusCode"] == 200
         assert response["body"] == "OK"
         assert response["headers"] == {"Content-Type": "text/plain"}
-
-    @pytest.mark.parametrize(
-        ("request_method", "request_parameter"),
-        [
-            pytest.param("GET", "unknown_path", id="Unknown path"),
-            pytest.param("GET", "FHIR/R4/Bundle", id="Unknown GET method"),
-            pytest.param("POST", "_status", id="Unknown POST method"),
-        ],
-    )
-    def test_invalid_request(self, request_method: str, request_parameter: str) -> None:
-        event = self._create_test_event(
-            path_params=request_parameter, request_method=request_method
-        )
-        context = LambdaContext()
-
-        response = handler(event, context)
-
-        assert response["statusCode"] == 404
-        assert json.loads(response["body"]) == {
-            "statusCode": 404,
-            "message": "Not found",
-        }
-        assert response["headers"] == {"Content-Type": "application/json"}

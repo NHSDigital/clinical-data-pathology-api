@@ -52,7 +52,7 @@ runs:
 
     - name: Trivy SBOM SPDX Scan - Docker Image
       if: ${{ inputs.image-ref != '' }}
-      uses: aquasecurity/trivy-action@0.28.0
+      uses: aquasecurity/trivy-action@0.34.2
       with:
         scan-type: image
         image-ref: ${{ inputs.image-ref }}
@@ -61,7 +61,7 @@ runs:
 
     - name: Trivy SBOM SPDX Scan - Repo
       if: ${{ inputs.repo-path != '' }}
-      uses: aquasecurity/trivy-action@0.28.0
+      uses: aquasecurity/trivy-action@0.34.2
       with:
         scan-type: repo
         scan-ref: ${{ inputs.repo-path }}
@@ -70,7 +70,7 @@ runs:
 
     - name: Trivy SBOM SPDX Scan - Filesystem
       if: ${{ inputs.fs-path != '' }}
-      uses: aquasecurity/trivy-action@0.28.0
+      uses: aquasecurity/trivy-action@0.34.2
       with:
         scan-type: fs
         scan-ref: ${{ inputs.fs-path }}
@@ -79,7 +79,7 @@ runs:
 
     - name: Trivy SBOM Dependency Graph Upload
       if: ${{ inputs.publish-to-dependency-graph == 'true' && inputs.github-token != '' }}
-      uses: aquasecurity/trivy-action@0.28.0
+      uses: aquasecurity/trivy-action@0.34.2
       with:
         scan-type: image
         image-ref: ${{ inputs.image-ref }}

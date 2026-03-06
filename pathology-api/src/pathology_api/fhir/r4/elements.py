@@ -6,6 +6,8 @@ from typing import Annotated, ClassVar
 
 from pydantic import Field, model_validator
 
+from pathology_api.exception import ValidationError
+
 
 @dataclass(frozen=True)
 class Meta:
@@ -18,6 +20,7 @@ class Meta:
 
     last_updated: Annotated[datetime.datetime | None, Field(alias="lastUpdated")] = None
     version_id: Annotated[str | None, Field(alias="versionId")] = None
+    profile: list[str] | None = None
 
     @classmethod
     def with_last_updated(cls, last_updated: datetime.datetime | None = None) -> "Meta":
@@ -44,13 +47,13 @@ class Identifier(ABC):
 
     _expected_system: ClassVar[str] = "__unknown__"
 
-    value: str
     system: str
+    value: str
 
     @model_validator(mode="after")
     def validate_system(self) -> "Identifier":
         if self.system != self._expected_system:
-            raise ValueError(
+            raise ValidationError(
                 f"Identifier system '{self.system}' does not match expected "
                 f"system '{self._expected_system}'."
             )
@@ -69,3 +72,22 @@ class UUIDIdentifier(Identifier, expected_system="https://tools.ietf.org/html/rf
             value=str(value or uuid.uuid4()),
             system=self._expected_system,
         )
+
+
+class PatientIdentifier(
+    Identifier, expected_system="https://fhir.nhs.uk/Id/nhs-number"
+):
+    """A FHIR R4 Patient Identifier utilising the NHS Number system."""
+
+    def __init__(self, value: str):
+        super().__init__(value=value, system=self._expected_system)
+
+    @classmethod
+    def from_nhs_number(cls, nhs_number: str) -> "PatientIdentifier":
+        """Create a PatientIdentifier from an NHS number."""
+        return cls(value=nhs_number)
+
+
+@dataclass(frozen=True)
+class LogicalReference[T: Identifier]:
+    identifier: T

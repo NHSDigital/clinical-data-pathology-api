@@ -37,10 +37,8 @@ build: clean-artifacts dependencies
 
 .PHONY: build-images
 build-images: build # Build the project artefact @Pipeline
-	@mkdir infrastructure/images/pathology-api/resources/build/
-	@cp pathology-api/target/artifact.zip infrastructure/images/pathology-api/resources/build/
-	@mkdir infrastructure/images/pathology-api/resources/build/pathology-api
-	@unzip infrastructure/images/pathology-api/resources/build/artifact.zip -d infrastructure/images/pathology-api/resources/build/pathology-api
+	@mkdir -p infrastructure/images/pathology-api/resources/build
+	@cp -r pathology-api/target/pathology-api infrastructure/images/pathology-api/resources/build
 
 	@echo "Building Docker image using Docker. Utilising python version: ${PYTHON_VERSION} ..."
 	@$(docker) buildx build --load --platform=linux/amd64 --provenance=false --build-arg PYTHON_VERSION=${PYTHON_VERSION} -t localhost/pathology-api-image infrastructure/images/pathology-api

@@ -1,0 +1,21 @@
+meta {
+  name: Pathology-Bundle-Status
+  type: http
+  seq: 4
+}
+
+get {
+  url: http://localhost:5002/_status
+  body: json
+  auth: inherit
+}
+
+assert {
+  res.status: eq 200
+  res.body: eq OK
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

@@ -1,0 +1,40 @@
+meta {
+  name: Bundle-Invalid-Payload
+  type: http
+  seq: 2
+}
+
+post {
+  url: http://localhost:5002/FHIR/R4/Bundle
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+  "resourceType": "Bundle",
+    "type": "document1",
+    "entry": [
+      {
+        "fullUrl": "patient",
+        "resource": {
+          "resourceType": "Patient",
+          "identifier": {
+            "system": "https://fhir.nhs.uk/Id/nhs-number",
+            "value": "nhs_number"
+          }
+        }
+      }
+    ]
+  }
+}
+
+assert {
+  res.status: eq 400
+  res.body: eq Invalid payload provided.
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

@@ -1,7 +1,8 @@
 """Step definitions for pathology API bundle endpoint feature."""
 
 import requests
-from pathology_api.fhir.r4.resources import Bundle, BundleType, Patient
+from pathology_api.fhir.r4.elements import LogicalReference, PatientIdentifier
+from pathology_api.fhir.r4.resources import Bundle, BundleType, Composition
 from pytest_bdd import given, parsers, then, when
 
 from tests.acceptance.conftest import ResponseContext
@@ -36,10 +37,10 @@ def step_send_valid_bundle(client: Client, response_context: ResponseContext) ->
             type="document",
             entry=[
                 Bundle.Entry(
-                    fullUrl="patient",
-                    resource=Patient.create(
-                        identifier=Patient.PatientIdentifier.from_nhs_number(
-                            "nhs_number"
+                    fullUrl="composition",
+                    resource=Composition.create(
+                        subject=LogicalReference(
+                            PatientIdentifier.from_nhs_number("nhs_number")
                         )
                     ),
                 )
@@ -66,8 +67,42 @@ def step_send_invalid_bundle(client: Client, response_context: ResponseContext) 
     )
 
 
+@when("I send a Bundle with missing Composition to the Pathology API")
+def step_send_bundle_without_composition(
+    client: Client, response_context: ResponseContext
+) -> None:
+    bundle = Bundle.create(
+        type="document",
+        entry=[],  # Missing required Composition
+    )
+
+    response_context.response = client.send(
+        path="FHIR/R4/Bundle",
+        request_method="POST",
+        data=bundle.model_dump_json(by_alias=True, exclude_none=True),
+    )
+
+
+@when(parsers.cfparse('I send a Bundle with type "{bundle_type}" to the Pathology API'))
+def step_send_bundle_wrong_type(
+    client: Client,
+    response_context: ResponseContext,
+    bundle_type: str,
+) -> None:
+    bundle = Bundle.create(
+        type=bundle_type,
+        entry=[],
+    )
+
+    response_context.response = client.send(
+        path="FHIR/R4/Bundle",
+        request_method="POST",
+        data=bundle.model_dump_json(by_alias=True, exclude_none=True),
+    )
+
+
 # fmt: off
-@then(parsers.cfparse("the response status code should be {expected_status:d}",extra_types={"expected_status": int}))  # noqa: E501 - BDD steps must be declared on a singular line.
+@then(parsers.cfparse("the response status code should be {expected_status:d}",extra_types={"expected_status": int})) # noqa: E501 - BDD steps must be declared on a singular line.
 # fmt: on
 def step_check_status_code(
     response_context: ResponseContext, expected_status: int
@@ -121,9 +156,7 @@ def step_check_response_contains_valid_bundle(
         f"Expected bundle type '{expected_type}', got: '{bundle.bundle_type}'"
     )
 
-    assert bundle.identifier is not None, "Bundle identifier is missing."
-    assert bundle.identifier.system == "https://tools.ietf.org/html/rfc4122"
-    assert bundle.identifier.value is not None, "Bundle identifier value is missing."
+    assert bundle.id is not None, "Bundle ID is missing."
 
 def _validate_response_set(response_context: ResponseContext) -> requests.Response:
     assert response_context.response is not None, "Response has not been set."
