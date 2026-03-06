@@ -17,9 +17,8 @@ class DurationUnit(StrEnum):
 
 @dataclass(frozen=True)
 class Duration:
-    def __init__(self, unit: DurationUnit, value: int):
-        self.unit = unit
-        self.value = value
+    unit: DurationUnit
+    value: int
 
     @property
     def timedelta(self) -> timedelta:
