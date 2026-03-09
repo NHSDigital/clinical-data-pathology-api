@@ -45,12 +45,17 @@ jobs:
           path: pathology-api/test-artefacts/
           merge-multiple: false
 
-      - name: "Merge coverage data"
-        run: make test-coverage
-
-      - name: "Rename coverage XML with unique name"
+      - name: "Build coverage XML report"
         run: |
           cd pathology-api/test-artefacts
+          ls -lth
+          mv coverage.unit .coverage.unit
+
+          cd ..
+          poetry run coverage combine test-artefacts
+          poetry run coverage report
+          poetry run coverage xml -o coverage-merged.xml
+
           mv coverage-merged.xml "${{ steps.create-name.outputs.artefact-name }}.xml"
 
       - name: "Upload combined coverage report"
