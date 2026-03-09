@@ -34,4 +34,4 @@ def test_api_schema_compliance(case: Case, base_url: str) -> None:
     - Returns appropriate status codes
     """
     # Call the API and validate the response against the schema
-    case.call_and_validate(base_url=base_url)
+    case.call_and_validate(base_url=base_url, timeout=30)

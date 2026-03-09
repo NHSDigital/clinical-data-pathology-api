@@ -1,0 +1,58 @@
+name: "Run test suite"
+description: |
+  Composite action that runs a single test type (unit/contract/schema/integration/acceptance),
+  uploads the test artefacts, and publishes a JUnit summary to the GitHub Actions job.
+  Delegates to `make test-<type>` which invokes scripts/tests/run-test.sh.
+  For remote tests, pass apigee-access-token to authenticate with the APIM proxy.
+
+inputs:
+  test-type:
+    description: "Test type: unit, contract, schema, integration, acceptance"
+    required: true
+  apigee-access-token:
+    description: "Apigee access token (if needed)"
+    required: false
+    default: ""
+  env:
+    description: "Environment: local or remote"
+    required: false
+    default: "remote"
+
+runs:
+  using: composite
+  steps:
+    - name: "Run ${{ inputs.test-type }} tests"
+      shell: bash
+      env:
+        APIGEE_ACCESS_TOKEN: ${{ inputs.apigee-access-token }}
+        ENV: ${{ inputs.env }}
+      run: |
+        if [[ -n "${APIGEE_ACCESS_TOKEN}" ]]; then
+          echo "::add-mask::${APIGEE_ACCESS_TOKEN}"
+        fi
+        make test-${{ inputs.test-type }}
+
+    - name: "Upload ${{ inputs.test-type }} test results"
+      if: always()
+      uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+      with:
+        name: ${{ inputs.test-type }}-test-results
+        path: pathology-api/test-artefacts/
+        retention-days: 30
+
+    - name: "Check ${{ inputs.test-type }}-tests.xml exists"
+      id: check
+      if: always()
+      shell: bash
+      run: |
+        if [[ -f "pathology-api/test-artefacts/${{ inputs.test-type }}-tests.xml" ]]; then
+          echo "exists=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "exists=false" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: "Publish ${{ inputs.test-type }} test results to summary"
+      if: ${{ always() && steps.check.outputs.exists == 'true' }}
+      uses: test-summary/action@31493c76ec9e7aa675f1585d3ed6f1da69269a86
+      with:
+        paths: pathology-api/test-artefacts/${{ inputs.test-type }}-tests.xml

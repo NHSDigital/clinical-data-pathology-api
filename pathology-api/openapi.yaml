@@ -135,6 +135,8 @@ paths:
                   enum:
                     - Bundle
                   description: FHIR resource type
+                meta:
+                  $ref: "#/components/schemas/meta"
                 type:
                   type: string
                   enum:
@@ -357,6 +359,13 @@ paths:
                       - severity: error
                         code: invalid
                         diagnostics: "Resources must be provided as a bundle of type document"
+        '401':
+          description: Unauthorized
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: example_text
         '500':
           description: Unexpected internal error
           headers:
@@ -398,6 +407,15 @@ components:
       schema:
         type: string
   schemas:
+    meta:
+      type: object
+      properties:
+        profile:
+          type: array
+          items:
+            type: string
+        versionId:
+          type: string
     CompositionResource:
       type: object
       required:
@@ -410,6 +428,8 @@ components:
           enum:
             - Composition
           example: Composition
+        meta:
+          $ref: "#/components/schemas/meta"
         subject:
           type: object
           required:

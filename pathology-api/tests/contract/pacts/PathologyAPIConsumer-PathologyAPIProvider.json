@@ -111,14 +111,29 @@
       },
       "response": {
         "body": {
-          "content": "OK",
-          "contentType": "text/plain",
+          "content": {
+            "status": "pass"
+          },
+          "contentType": "application/json",
           "encoded": false
         },
         "headers": {
           "Content-Type": [
-            "text/plain"
+            "application/json"
           ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.status": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^(pass|ok)$"
+                }
+              ]
+            }
+          }
         },
         "status": 200
       },

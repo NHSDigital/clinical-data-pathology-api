@@ -6,7 +6,7 @@ This directory contains the acceptance, contract, integration, and schema valida
 
 ```text
 tests/
-├── conftest.py                          # Shared pytest fixtures (includes base_url, hostname, client)
+├── conftest.py                          # Shared pytest fixtures
 ├── acceptance/                          # Acceptance tests (BDD with pytest-bdd)
 │   ├── conftest.py                      # Acceptance test fixtures (ResponseContext)
 │   ├── scenarios/test_*.py              # Scenario bindings, should be named after the feature file the python script is providing scenario bindings for
@@ -22,13 +22,38 @@ tests/
     └── test_openapi_schema.py           # Schemathesis property-based tests
 ```
 
-## Running Tests
->
-> [!NOTE]<br>
-> When running tests the following environment variables need to be provided:
->
-> - `BASE_URL` - defines the protocol, hostname and port that should used to access the running APIs. Should be included as a URL in the format <protocol>:<hostname>:<port>, for example "<http://localhost:5000>" if the APIs are available on the "localhost" host via HTTP using port 5000.
-> - `HOST` - defines the hostname that should be used to access the running APIs. This should match the host portion of the URL provided in the `BASE_URL` environment variable above.
+### Running Tests
+
+To run tests, ensure that you have run `make deploy` and configured your .env files correctly providing the relevant [Environment Variables](#environment-variables).
+
+There are two commands you may wish to use:
+
+* `make test-local` runs the test suite against the local Lambda via the api-gateway-mock
+* `make test-remote` runs the test suite against the AWS lambda via the APIM proxy (relies on having a preview environment deployed via a pull-request)
+
+| | make test-local | make test-remote |
+| --- | --- | --- |
+| | | |
+| .env | .env.local | .env.remote |
+| ENV | local | remote |
+| Client | LocalClient | RemoteClient + auth headers |
+| Auth | None | APIGEE_ACCESS_TOKEN |
+| Timeout | 1s | 5s |
+| | | |
+| Target | Local Lambda | APIM proxy → AWS Lambda |
+
+### Environment Variables
+
+| Variable | Required | Description |
+| --- | --- | --- |
+| `ENV` | Always | `local` or `remote` — selects client and test filtering |
+| `BASE_URL` | Always | API base URL in the format <protocol>:<hostname>:<port> |
+| `HOST` | Always | hostname portion of `BASE_URL` |
+| `PR_NUMBER` | Remote only | PR number; used to construct the preview proxy URL |
+| `PROXYGEN_API_NAME` | Remote only | Proxygen API name |
+| `APIGEE_ACCESS_TOKEN` | Remote only | OAuth token from `proxygen pytest-nhsd-apim get-token` |
+
+The .env file is deterministically overwritten each time you switch environments so the test runner always sees a consistent configuration. See the `Local vs remote environment helpers` section in test.mk
 
 ### Install Dependencies (if not using Dev container)
 
@@ -39,15 +64,18 @@ cd pathology-api
 poetry sync
 ```
 
-### Run All Tests (with Verbose Output)
+### Run Specific Test Types
 
-From the root of the repository:
+Ensure that the correct .env file has been synced correctly before proceeding.
+This is automatically done when using the `make test-local` or `make test-remote` commands
+This could be done manually by copying the `.env.local` or `.env.remote` to the `.env` file (for remote, the `base_url` will need to be the proxy URL available on your PR) and then sourcing your `.env` file in the terminal:
 
 ```bash
-pytest -v
+# Sync your .env file
+set -a
+source .env
+set +a
 ```
-
-### Run Specific Test Types
 
 ```bash
 # Run only acceptance tests
@@ -71,9 +99,9 @@ Behavior-driven development (BDD) tests using pytest-bdd and Gherkin syntax. The
 
 **Structure:**
 
-- **Feature files** (`features/*.feature`): Written in Gherkin, these define scenarios in plain language
-- **Step definitions** (`steps/*.py`): Python implementations that map Gherkin steps to actual test code
-- **Test bindings** (`scenarios/test_*.py`): Link scenarios to pytest test functions using `@scenario` decorator
+* **Feature files** (`features/*.feature`): Written in Gherkin, these define scenarios in plain language
+* **Step definitions** (`steps/*.py`): Python implementations that map Gherkin steps to actual test code
+* **Test bindings** (`scenarios/test_*.py`): Link scenarios to pytest test functions using `@scenario` decorator
 
 **How it works:**
 
@@ -101,23 +129,23 @@ Integration tests that validate the APIs behavior through HTTP requests. These t
 
 **How it works:**
 
-- Tests use the `Client` class from `conftest.py` to interact with the API
-- The client sends HTTP POST requests to the APIs
-- Tests verify response status codes, headers, and response bodies
-- Tests validate both successful requests and error handling
+* Tests use the `Client` class from `conftest.py` to interact with the API
+* The client sends HTTP POST requests to the APIs
+* Tests verify response status codes, headers, and response bodies
+* Tests validate both successful requests and error handling
 
 **Example test cases:**
 
-- Successful "hello world" responses
-- Error handling for missing or empty payloads
-- Error handling for non-existent resources
-- Content-Type header validation
+* Successful "hello world" responses
+* Error handling for missing or empty payloads
+* Error handling for non-existent resources
+* Content-Type header validation
 
 **Key difference from acceptance tests:**
 
-- Integration tests use direct pytest assertions without Gherkin syntax
-- More focused on testing specific API behaviors and edge cases
-- Uses the same `Client` fixture as acceptance tests but with standard pytest structure
+* Integration tests use direct pytest assertions without Gherkin syntax
+* More focused on testing specific API behaviors and edge cases
+* Uses the same `Client` fixture as acceptance tests but with standard pytest structure
 
 ### Schema Validation Tests (`schema/`)
 
@@ -125,14 +153,14 @@ Property-based API schema validation tests using Schemathesis. These tests autom
 
 **How it works:**
 
-- Loads the OpenAPI schema from `openapi.yaml`
-- Uses the `base_url` fixture to test against the running API
-- Automatically generates test cases including:
-  - Valid inputs
-  - Edge cases
-  - Boundary values
-  - Invalid inputs
-- Validates that responses match the schema definitions
+* Loads the OpenAPI schema from `openapi.yaml`
+* Uses the `base_url` fixture to test against the running API
+* Automatically generates test cases including:
+  * Valid inputs
+  * Edge cases
+  * Boundary values
+  * Invalid inputs
+* Validates that responses match the schema definitions
 
 ### Contract Testing with Pact (`contract/`)
 
@@ -141,17 +169,17 @@ Contract testing ensures that the consumer's expectations match the provider's i
 **How it works:**
 
 1. **Consumer Tests** (`test_consumer_contract.py`):
-   - Define what the consumer EXPECTS from the API
-   - Test against a **mock Pact server** (not the real API)
-   - The mock server responds based on the defined expectations
-   - Generates a pact contract file (`pathologyAPIConsumer-pathologyAPIProvider.json`) with all interactions
-   - **Key point:** These tests don't call the real API
+   * Define what the consumer EXPECTS from the API
+   * Test against a **mock Pact server** (not the real API)
+   * The mock server responds based on the defined expectations
+   * Generates a pact contract file (`pathologyAPIConsumer-pathologyAPIProvider.json`) with all interactions
+   * **Key point:** These tests don't call the real API
 
 2. **Provider Integration Tests** (`test_provider_contract.py`):
-   - Verify the **actual deployed API** implementation
-   - Read the pact contract file generated by consumer tests
-   - Verify that the real API implementation satisfies the consumer's expectations
-   - **Key point:** This is where the real API gets tested
+   * Verify the **actual deployed API** implementation
+   * Read the pact contract file generated by consumer tests
+   * Verify that the real API implementation satisfies the consumer's expectations
+   * **Key point:** This is where the real API gets tested
 
 **The Flow:**
 
@@ -163,11 +191,11 @@ Consumer Test → Mock Pact Server → Contract File (JSON)
 
 **Why this approach as opposed to a standard integration test?**
 
-- **Explicit contract documentation** - The pact file is a versioned artefact that documents the API contract
-- **Contract evolution tracking** - Because of the above - Git diffs will show exactly how API contracts change over time
+* **Explicit contract documentation** - The pact file is a versioned artefact that documents the API contract
+* **Contract evolution tracking** - Because of the above - Git diffs will show exactly how API contracts change over time
 
-- **Consumer-driven development** - Consumers define their needs; providers verify they meet them
-- **Prevents breaking changes** - Provider tests fail if changes break existing consumer expectations
+* **Consumer-driven development** - Consumers define their needs; providers verify they meet them
+* **Prevents breaking changes** - Provider tests fail if changes break existing consumer expectations
 
 ### Contract Testing Workflow
 
@@ -179,18 +207,19 @@ Consumer tests generate the pact contract files in `tests/contract/pacts/` (e.g.
 
 **Key points:**
 
-- The pact contract file represents the contract between the consumer and provider
-- This file is committed to version control so you can track contract changes through git diffs
-- The `pact.write_file()` call merges interactions (updates existing or adds new ones)
-- Interactions with the same description get replaced; different descriptions get added
+* The pact contract file represents the contract between the consumer and provider
+* This file is committed to version control so you can track contract changes through git diffs
+* The `pact.write_file()` call merges interactions (updates existing or adds new ones)
+* Interactions with the same description get replaced; different descriptions get added
 
 ## Shared Fixtures
 
-Shared fixtures in `tests/conftest.py` are available across all test types:
-
-- **`base_url`**: The base URL of the deployed Lambda function (from `BASE_URL` environment variable highlighted above)
-- **`hostname`**: The hostname of the deployed application (from `HOST` environment variable highlighted above)
-- **`client`**: An HTTP client instance for sending requests to the APIs
+| Fixture | Scope | Description |
+| --- | --- | --- |
+| `base_url` | module | `BASE_URL` environment variable |
+| `hostname` | function | `HOST` environment variable |
+| `client` | function | `LocalClient` or `RemoteClient` depending on `--env` |
+| `get_headers` | function | Merged auth headers for remote, `None` for local |
 
 ## Test Reports
 
@@ -202,8 +231,8 @@ JUnit XML format is used for CI/CD integration and test result summaries. All re
 
 **All Test Types (Unit, Contract, Schema, Integration, Acceptance):**
 
-- Generated with `--junit-xml=test-artefacts/{type}-tests.xml`
-- Contains test results, execution times, and failure details
+* Generated with `--junit-xml=test-artefacts/{type}-tests.xml`
+* Contains test results, execution times, and failure details
 
 ### HTML Test Reports
 
@@ -211,12 +240,12 @@ Human-readable HTML reports for detailed test analysis:
 
 **Tests using pytest (Unit, Contract, Schema, Integration, Acceptance):**
 
-- Generated with `--html=test-artefacts/{type}-tests.html --self-contained-html`
-- Self-contained HTML files with embedded CSS/JavaScript
-- Include:
-  - Test results with pass/fail status
-  - Execution times
-  - Test metadata
+* Generated with `--html=test-artefacts/{type}-tests.html --self-contained-html`
+* Self-contained HTML files with embedded CSS/JavaScript
+* Include:
+  * Test results with pass/fail status
+  * Execution times
+  * Test metadata
 
 ### CI/CD Report Artefacts
 
@@ -238,10 +267,10 @@ Each test execution script (`scripts/tests/*.sh`) collects coverage data indepen
 
 **Unit, Contract, Schema, Integration, and Acceptance Tests** (pytest-based):
 
-- Use `pytest-cov` plugin with `--cov=src/pathology_api` flag
-- Generate individual coverage data files: `.coverage`
-- Each test type saves its coverage file as `coverage.{type}` (e.g., `coverage.unit`, `coverage.contract`, `coverage.schema`)
-- Produce HTML reports for local viewing and terminal output for CI logs
+* Use `pytest-cov` plugin with `--cov=src/pathology_api` flag
+* Generate individual coverage data files: `.coverage`
+* Each test type saves its coverage file as `coverage.{type}` (e.g., `coverage.unit`, `coverage.contract`, `coverage.schema`)
+* Produce HTML reports for local viewing and terminal output for CI logs
 
 ### CI/CD Coverage Workflow
 
