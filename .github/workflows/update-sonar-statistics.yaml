@@ -12,7 +12,7 @@ jobs:
   run-tests:
     name: "Run Tests"
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - name: "Checkout code"
         uses: actions/checkout@v6
@@ -38,20 +38,6 @@ jobs:
         with:
           test-type: unit
           env: local
-
-  merge-test-coverage:
-    name: "Merge test coverage"
-    needs: run-tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 2
-    steps:
-      - name: "Checkout code"
-        uses: actions/checkout@v6
-
-      - name: Setup Python project
-        uses: ./.github/actions/setup-python-project
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: "Download all test coverage artefacts"
         uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
