@@ -3,7 +3,7 @@ name: "Update Sonar Statistics"
 on:
   push:
     branches:
-      - "feature/CDAPI-125" # Temporary whilst testing changes
+      - "main"
 
 env:
   PYTHON_VERSION: 3.14
@@ -48,7 +48,6 @@ jobs:
       - name: "Build coverage XML report"
         run: |
           cd pathology-api/test-artefacts
-          ls -lth
           mv coverage.unit .coverage.unit
 
           cd ..
