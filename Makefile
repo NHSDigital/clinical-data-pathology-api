@@ -104,16 +104,14 @@ build-images: build # Build the project artefact @Pipeline
 	@mkdir -p infrastructure/images/pathology-api/resources/build
 	@cp -r pathology-api/target/pathology-api infrastructure/images/pathology-api/resources/build
 
-	@mkdir infrastructure/images/mocks/resources/build/
-	@cp mocks/target/artifact.zip infrastructure/images/mocks/resources/build/
-	@mkdir infrastructure/images/mocks/resources/build/mocks
-	@unzip infrastructure/images/mocks/resources/build/artifact.zip -d infrastructure/images/mocks/resources/build/mocks
+	@mkdir -p infrastructure/images/mocks/resources/build
+	@cp -r mocks/target/mocks infrastructure/images/mocks/resources/build
 
 	@echo "Building Docker image using Docker. Utilising python version: ${PYTHON_VERSION} ..."
 	@$(docker) buildx build --load --platform=linux/amd64 --provenance=false --build-arg PYTHON_VERSION=${PYTHON_VERSION} -t localhost/pathology-api-image infrastructure/images/pathology-api
 	@echo "Docker image 'pathology-api-image' built successfully!"
 
-	@echo "Building api-gateway-mock using Docker. Utilising python version: ${PYTHON_VERSION} ..."
+	@echo "Building api gateway image using Docker. Utilising python version: ${PYTHON_VERSION} ..."
 	@$(docker) buildx build --load --build-arg PYTHON_VERSION=${PYTHON_VERSION} -t localhost/api-gateway-mock-image infrastructure/images/api-gateway-mock
 	@echo "Docker image 'api-gateway-mock-image' built successfully!"
 
@@ -128,8 +126,8 @@ deploy: clean-docker build-images # Deploy the project artefact to the target en
 	$(docker) network create $(dockerNetwork) || echo "Docker network '$(dockerNetwork)' already exists."
 	$(docker) run --platform linux/amd64 --name pathology-api -p 5001:8080 --network $(dockerNetwork) -d localhost/pathology-api-image
 	$(docker) run --platform linux/amd64 --name mocks -p 5003:8080 --network $(dockerNetwork) -d localhost/mocks-image
-	$(docker) run --name api-gateway-mock -p 5002:5000 --network $(dockerNetwork) -d localhost/api-gateway-mock-image
-	$(docker) run --name api-gateway-mock-2 -p 5005:5000 -e TARGET_CONTAINER='MOCKS' --network $(dockerNetwork) -d localhost/api-gateway-mock-image
+	$(docker) run --name pathology-api-gateway -p 5002:5000 -e TARGET_CONTAINER='PATHOLOGY_API' -e TARGET_URL='http://pathology-api:8080' --network $(dockerNetwork) -d localhost/api-gateway-mock-image
+	$(docker) run --name mocks-api-gateway -p 5005:5000 -e TARGET_CONTAINER='MOCKS' -e TARGET_URL='http://mocks:8080' --network $(dockerNetwork) -d localhost/api-gateway-mock-image
 
 clean-artifacts:
 	@echo "Removing build artefacts..."
@@ -142,14 +140,14 @@ clean-docker: stop
 	@echo "Removing pathology API container..."
 	@$(docker) rm pathology-api || echo "No pathology API container currently exists."
 
-	@echo "Removing api-gateway-mock container..."
-	@$(docker) rm api-gateway-mock || echo "No api-gateway-mock container currently exists."
+	@echo "Removing pathology-api api-gateway container..."
+	@$(docker) rm pathology-api-gateway || echo "No pathology-api-gateway container currently exists."
 
 	@echo "Removing mocks container..."
 	@$(docker) rm mocks || echo "No mocks container currently exists."
 
-	@echo "Removing api-gateway-mock-2 container..."
-	@$(docker) rm api-gateway-mock-2 || echo "No api-gateway-mock-2 container currently exists."
+	@echo "Removing mocks api-gateway container..."
+	@$(docker) rm mocks-api-gateway || echo "No mocks-api-gateway container currently exists."
 
 clean:: clean-artifacts clean-docker  # Clean-up project resources (main) @Operations
 
@@ -158,14 +156,14 @@ stop:
 	@echo "Stopping pathology API container..."
 	@$(docker) stop pathology-api || echo "No pathology API container currently running."
 
-	@echo "Stopping api-gateway-mock container..."
-	@$(docker) stop api-gateway-mock || echo "No api-gateway-mock container currently running."
+	@echo "Stopping pathology-api-gateway container..."
+	@$(docker) stop pathology-api-gateway || echo "No pathology-api-gateway container currently running."
 
 	@echo "Stopping mocks container..."
 	@$(docker) stop mocks || echo "No mocks container currently running."
 
-	@echo "Stopping api-gateway-mock-2 container..."
-	@$(docker) stop api-gateway-mock-2 || echo "No api-gateway-mock-2 container currently running."
+	@echo "Stopping mocks-api-gateway container..."
+	@$(docker) stop mocks-api-gateway || echo "No mocks-api-gateway container currently running."
 
 config:: # Configure development environment (main) @Configuration
 	# Configure poetry to trust dev certificate if specified

@@ -9,7 +9,6 @@ from apim_mock.handler import (
     _get_jwk_key_from_url_by_kid,
     _get_jwt_headers,
     _validate_assertions,
-    _validate_payload,
     check_valid_uuid4,
     handle_request,
 )
@@ -61,7 +60,7 @@ class TestHandleRequest:
             {
                 "access_token": "test_token",
                 "expiresAt": 1772212839,
-                "ddb_index": "",
+                "ddb_index": "branch_name",
                 "sessionId": "test_token",
                 "type": "access_token",
             }
@@ -102,7 +101,7 @@ class TestHandleRequest:
     )
     def test_invalid_payload(self, payload: dict[str, Any], error_message: str) -> None:
         with pytest.raises(ValueError, match=error_message):
-            _validate_payload(payload)
+            handle_request(payload)
 
     @pytest.mark.parametrize(
         ("unverified_headers", "error_message"),

@@ -5,7 +5,7 @@ import re
 import secrets
 import string
 from time import time
-from typing import Any
+from typing import Any, TypedDict
 
 import boto3
 import jwt
@@ -16,8 +16,16 @@ JWT_ALGORITHMS = ["RS512"]
 AUTH_URL = os.environ.get("AUTH_URL", "https://api.service.nhs.uk/oauth2/token")
 PUBLIC_KEY_URL = os.environ.get("PUBLIC_KEY_URL", "https://example.com")
 API_KEY = os.environ.get("API_KEY", "api_key")
-TOKEN_TABLE_NAME = os.environ.get("TOKEN_TABLE_NAME", "table_name")
-BRANCH_NAME = os.environ.get("DDB_INDEX_TAG", "")
+TOKEN_TABLE_NAME = os.environ.get("TOKEN_TABLE_NAME", "token_table")
+BRANCH_NAME = os.environ.get("DDB_INDEX_TAG", "branch_name")
+
+
+class TokenItem(TypedDict):
+    access_token: str
+    expiresAt: int
+    ddb_index: str
+    sessionId: str
+    type: str
 
 
 def handle_request(payload: dict[str, Any]) -> dict[str, Any]:
@@ -42,7 +50,7 @@ def handle_request(payload: dict[str, Any]) -> dict[str, Any]:
 
     token = _generate_random_token()
 
-    item = {
+    item: TokenItem = {
         "access_token": token,
         "expiresAt": int(time()) + 599,
         "ddb_index": BRANCH_NAME,
@@ -65,16 +73,18 @@ def _validate_payload(payload: dict[str, Any]) -> None:
     if not payload.get("grant_type"):
         raise ValueError("grant_type is missing")
     client_assertion_type = payload.get("client_assertion_type")
+    client_assertion = payload.get("client_assertion")
     if (
         not client_assertion_type
         or client_assertion_type[0]
         != "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
+        or len(client_assertion_type) != 1
     ):
         raise ValueError(
             "Missing or invalid client_assertion_type - "
             "must be 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer'"
         )
-    if not payload.get("client_assertion"):
+    if not client_assertion or len(client_assertion) != 1:
         raise ValueError("Missing client_assertion")
 
 
@@ -116,10 +126,8 @@ def _get_jwk_key_from_url_by_kid(kid: str) -> Any:
     """  # noqa: E501
 
     keys = json.loads(resp_body).get("keys", [])
-    jwk_key = {}
-    for key in keys:
-        if key.get("kid") == kid:
-            jwk_key = key
+
+    jwk_key: dict[str, Any] = next((key for key in keys if key.get("kid") == kid), {})
 
     if not jwk_key:
         raise ValueError(
@@ -174,7 +182,7 @@ def _generate_random_token() -> str:
     )
 
 
-def write_token_to_table(item: dict[str, Any]) -> None:
+def write_token_to_table(item: TokenItem) -> None:
     dynamodb = boto3.resource("dynamodb")
     table = dynamodb.Table(TOKEN_TABLE_NAME)
     table.put_item(Item=item)

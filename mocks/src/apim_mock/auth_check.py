@@ -4,8 +4,8 @@ from time import time
 import boto3
 from boto3.dynamodb.conditions import Attr, Key
 
-TOKEN_TABLE_NAME = os.environ.get("TOKEN_TABLE_NAME", "")
-BRANCH_NAME = os.environ.get("DDB_INDEX_TAG", "")
+TOKEN_TABLE_NAME = os.environ.get("TOKEN_TABLE_NAME", "token_table")
+BRANCH_NAME = os.environ.get("DDB_INDEX_TAG", "branch_name")
 
 
 def check_authenticated(token: str) -> bool:

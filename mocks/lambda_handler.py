@@ -64,8 +64,6 @@ def root() -> Response[str]:
 @app.post("/apim/oauth2/token")
 def post_auth() -> Response[str]:
     _logger.debug("Authentication Mock called")
-    _logger.debug("temp: %s", app.current_event.body)
-    _logger.debug("temp2: %s", app.current_event.decoded_body)
 
     payload = app.current_event.decoded_body
 

@@ -27,11 +27,12 @@ dictConfig(
 
 app = Flask(__name__)  # NOSONAR python:S4502
 TARGET_CONTAINER = os.environ.get("TARGET_CONTAINER")
+TARGET_URL = os.environ.get("TARGET_URL")
 
-if TARGET_CONTAINER == "MOCKS":
-    cors = CORS(app, resources={r"/*": {"origins": "http://localhost:5004"}})
-else:
+if TARGET_CONTAINER == "PATHOLOGY_API":
     cors = CORS(app, resources={r"/*": {"origins": "http://localhost:5002"}})
+else:
+    cors = CORS(app, resources={r"/*": {"origins": "http://localhost:5005"}})
 
 
 @app.route(  # NOSONAR python:S3752
@@ -41,17 +42,9 @@ else:
 )
 @app.route("/<path:path_params>", methods=["POST", "GET"])
 def forward_request(path_params):
-    app.logger.info("received request with data: %s", request.get_data(as_text=True))
-
-    if TARGET_CONTAINER == "MOCKS":
-        base_url = "http://mocks:8080"  # NOSONAR python:S5332
-        content_type = "application/x-www-form-urlencoded"
-    else:
-        base_url = "http://pathology-api:8080"  # NOSONAR python:S5332
-        content_type = "application/json"
 
     response = requests.post(
-        f"{base_url}/2015-03-31/functions/function/invocations",
+        f"{TARGET_URL}/2015-03-31/functions/function/invocations",
         json={
             "body": request.get_data(as_text=True).replace("\n", "").replace(" ", ""),
             "requestContext": {
@@ -67,7 +60,7 @@ def forward_request(path_params):
             "rawQueryString": "",
             "pathParameters": {"proxy": path_params},
         },
-        headers={"Content-Type": content_type},
+        headers={"Content-Type": "application/json"},
         timeout=120,
     )
 
