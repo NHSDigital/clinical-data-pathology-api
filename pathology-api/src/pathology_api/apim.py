@@ -89,25 +89,45 @@ class ApimAuthenticator:
             claims["aud"],
         )
 
-        return jwt.encode(
-            claims,
-            self._private_key,
-            algorithm="RS512",
-            headers={"kid": self._key_id},
-        )
+        try:
+            client_assertion = jwt.encode(
+                claims,
+                self._private_key,
+                algorithm="RS512",
+                headers={"kid": self._key_id},
+            )
+
+            _logger.debug("Created client assertion. kid: %s", self._key_id)
+
+            return client_assertion
+        except BaseException:
+            _logger.exception("Failed to create client assertion JWT")
+            raise
 
     def _authenticate(self) -> __AccessToken:
         @self._session_manager.with_session
         def with_session(session: requests.Session) -> ApimAuthenticator.__AccessToken:
+            client_assertion = self._create_client_assertion()
+
             _logger.debug("Sending token request with created session.")
-            response = session.post(
-                self._token_endpoint,
-                data={
-                    "grant_type": "client_credentials",
-                    "client_assertion_type": "urn:ietf:params:oauth"
-                    ":client-assertion-type:jwt-bearer",
-                    "client_assertion": self._create_client_assertion(),
-                },
+
+            try:
+                response = session.post(
+                    self._token_endpoint,
+                    data={
+                        "grant_type": "client_credentials",
+                        "client_assertion_type": "urn:ietf:params:oauth"
+                        ":client-assertion-type:jwt-bearer",
+                        "client_assertion": client_assertion,
+                    },
+                )
+            except BaseException:
+                _logger.exception("Failed to send authentication request to APIM")
+                raise
+
+            _logger.debug(
+                "Response received from APIM token endpoint. Status code: %s",
+                response.status_code,
             )
 
             if response.status_code != 200:
