@@ -15,7 +15,10 @@ dependencies = [
 ]
 
 [tool.poetry]
-packages = [{include = "apim_mock", from = "src"}]
+packages = [
+  {include = "apim_mock", from = "src"},
+  {include = "pdm_mock", from = "src"}
+]
 
 [tool.coverage.run]
 relative_files = true

@@ -11,6 +11,8 @@ from aws_lambda_powertools.event_handler import (
 )
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from jwt.exceptions import InvalidTokenError
+from pdm_mock.handler import handle_get_request as handle_pdm_get_request
+from pdm_mock.handler import handle_post_request as handle_pdm_post_request
 
 _logger = logging.getLogger(__name__)
 
@@ -23,6 +25,9 @@ def _with_default_headers(status_code: int, body: str) -> Response[str]:
         headers={"Content-Type": "application/json"},
         body=body,
     )
+
+
+###### Health Checks ######
 
 
 @app.get("/_status")
@@ -61,11 +66,14 @@ def root() -> Response[str]:
     return _with_default_headers(200, body=json.dumps(response_body, indent=2))
 
 
+##### APIM Mock #####
+
+
 @app.post("/apim/oauth2/token")
 def post_auth() -> Response[str]:
     _logger.debug("Authentication Mock called")
-    _logger.debug("temp: %s", app.current_event.body)
-    _logger.debug("temp2: %s", app.current_event.decoded_body)
+    _logger.debug("body: %s", app.current_event.body)
+    _logger.debug("decoded_body: %s", app.current_event.decoded_body)
 
     payload = app.current_event.decoded_body
 
@@ -99,20 +107,60 @@ def post_auth() -> Response[str]:
     )
 
 
-@app.route("/apim/check_auth", method=["POST", "GET"])
-def check_auth() -> Response[str]:
+def auth_check() -> bool:
     headers = app.current_event.headers
 
     token = headers.get("Authorization", "").replace("Bearer ", "")
 
-    if check_authenticated(token):
-        return _with_default_headers(
-            status_code=200, body=json.dumps({"message": "ok"})
-        )
-    else:
+    return check_authenticated(token)
+
+
+##### PDM Mock #####
+
+
+@app.post("/pdm/FHIR/R4/Bundle")
+def create_document() -> Response[str]:
+    _logger.debug("Post a document endpoint called")
+
+    if not auth_check():
         return _with_default_headers(
             status_code=401, body=json.dumps({"message": "Unauthorized"})
         )
+
+    try:
+        payload = app.current_event.json_body
+    except json.JSONDecodeError as err:
+        _logger.error("Error decoding JSON payload. error: %s", err)
+        return _with_default_headers(status_code=400, body="Invalid Payload provided.")
+    _logger.debug("Payload received: %s", payload)
+
+    if not payload:
+        _logger.error("No payload provided.")
+        return _with_default_headers(status_code=400, body="No payload provided.")
+
+    try:
+        response = handle_pdm_post_request(payload)
+    except Exception as err:
+        _logger.error("Error handling PDM request. error: %s", err)
+        return _with_default_headers(status_code=500, body="Internal Server Error")
+
+    return _with_default_headers(status_code=200, body=json.dumps(response))
+
+
+@app.get("/pdm/FHIR/R4/Bundle/<document_id>")
+def get_document(document_id: str) -> Response[str]:
+    _logger.debug("Get a document endpoint called with document_id: %s", document_id)
+
+    try:
+        response = handle_pdm_get_request(document_id)
+    except Exception as err:
+        _logger.error("Error handling PDM request. error: %s", err)
+        return _with_default_headers(status_code=500, body="Internal Server Error")
+
+    return _with_default_headers(status_code=200, body=json.dumps(response))
+
+
+##########
 
 
 def handler(data: dict[str, Any], context: LambdaContext) -> dict[str, Any]:

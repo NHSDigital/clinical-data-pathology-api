@@ -8,4 +8,8 @@ COPY resources/ /resources
 
 COPY /resources/build/mocks ${LAMBDA_TASK_ROOT}
 
+# RUN mkdir -p /.aws
+
+# COPY /resources/.aws/ /root/.aws/
+
 CMD [ "lambda_handler.handler" ]
