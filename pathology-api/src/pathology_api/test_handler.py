@@ -1,6 +1,15 @@
 import datetime
+import os
 
 import pytest
+
+os.environ["CLIENT_TIMEOUT"] = "1s"
+os.environ["APIM_TOKEN_URL"] = "apim_url"  # noqa S105 - dummy value
+os.environ["APIM_PRIVATE_KEY_NAME"] = "apim_private_key_name"
+os.environ["APIM_API_KEY_NAME"] = "apim_api_key_name"
+os.environ["APIM_TOKEN_EXPIRY_THRESHOLD"] = "1s"  # noqa S105 - dummy value
+os.environ["APIM_KEY_ID"] = "apim_key"
+os.environ["PDM_BUNDLE_URL"] = "pdm_bundle_url"
 
 from pathology_api.exception import ValidationError
 from pathology_api.fhir.r4.elements import (
