@@ -101,9 +101,6 @@ class ApimAuthenticator:
                     "client_assertion": self._create_client_assertion(),
                 },
             )
-            _logger.debug(
-                "Sending authentication request to APIM: %s", self._token_endpoint
-            )
 
             if response.status_code != 200:
                 raise ApimAuthenticationException(
@@ -124,4 +121,7 @@ class ApimAuthenticator:
                 + timedelta(seconds=response_data["expires_in"]),
             }
 
+        _logger.debug(
+            "Sending authentication request to APIM: %s", self._token_endpoint
+        )
         return with_session()

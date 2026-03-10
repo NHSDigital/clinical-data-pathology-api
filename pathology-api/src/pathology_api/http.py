@@ -8,6 +8,10 @@ from typing import Any, Concatenate, TypedDict
 import requests
 from requests.adapters import HTTPAdapter
 
+from pathology_api.logging import get_logger
+
+_logger = get_logger(__name__)
+
 # Type alias describing the expected signature for a request making a HTTP request.
 # Any function that takes a `requests.Session` as its first argument, followed by any
 # number of additional arguments, and returns any type of value.
@@ -51,12 +55,16 @@ class SessionManager:
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             with ExitStack() as stack:
+                _logger.debug("Creating new session for request")
                 session = requests.Session()
                 stack.enter_context(session)
 
+                _logger.debug("Mounted default settings to session")
                 session.mount("https://", self._client_adapter)
 
                 if self._client_certificate is not None:
+                    _logger.debug("Configuring session with client certificate...")
+
                     # File added to Exit stack to will be automatically cleaned up with
                     # the stack.
                     cert_file = tempfile.NamedTemporaryFile(  # noqa: SIM115
@@ -77,6 +85,7 @@ class SessionManager:
                     key_file.flush()
 
                     session.cert = (cert_file.name, key_file.name)
+                    _logger.debug("Client certificate added.")
 
                 return func(session, *args, **kwargs)
 
