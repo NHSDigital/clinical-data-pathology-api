@@ -72,6 +72,7 @@ class ApimAuthenticator:
         return wrapper
 
     def _create_client_assertion(self) -> str:
+        _logger.debug("Creating client assertion JWT for APIM authentication")
         claims = {
             "sub": self._api_key,
             "iss": self._api_key,
@@ -81,6 +82,12 @@ class ApimAuthenticator:
                 (datetime.now(tz=timezone.utc) + timedelta(seconds=30)).timestamp()
             ),
         }
+        _logger.debug(
+            "Created client assertion. jti: %s, exp: %s, aud: %s",
+            claims["jti"],
+            claims["exp"],
+            claims["aud"],
+        )
 
         return jwt.encode(
             claims,
@@ -92,6 +99,7 @@ class ApimAuthenticator:
     def _authenticate(self) -> __AccessToken:
         @self._session_manager.with_session
         def with_session(session: requests.Session) -> ApimAuthenticator.__AccessToken:
+            _logger.debug("Sending token request with created session.")
             response = session.post(
                 self._token_endpoint,
                 data={

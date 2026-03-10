@@ -40,6 +40,9 @@ class SessionManager:
             *args: Any,
             **kwargs: Any,
         ) -> requests.Response:
+            _logger.debug(
+                "Applying default timeout of %s seconds to request", self._timeout
+            )
             kwargs["timeout"] = self._timeout
             return super().send(request, *args, **kwargs)
 
