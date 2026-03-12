@@ -1,7 +1,11 @@
 import datetime
 import os
+from collections.abc import Callable
+from typing import Any
+from unittest.mock import Mock, patch
 
 import pytest
+from requests.exceptions import RequestException
 
 os.environ["CLIENT_TIMEOUT"] = "1s"
 os.environ["APIM_TOKEN_URL"] = "apim_url"  # noqa S105 - dummy value
@@ -17,7 +21,24 @@ from pathology_api.fhir.r4.elements import (
     PatientIdentifier,
 )
 from pathology_api.fhir.r4.resources import Bundle, Composition
-from pathology_api.handler import handle_request
+
+mock_session = Mock()
+
+
+def mock_auth(func: Callable[..., Any]) -> Callable[..., Any]:
+
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        return func(mock_session, *args, **kwargs)
+
+    return wrapper
+
+
+with (
+    patch("aws_lambda_powertools.utilities.parameters.get_secret") as get_secret_mock,
+    patch("pathology_api.apim.ApimAuthenticator") as apim_authenticator_mock,
+):
+    apim_authenticator_mock.return_value.auth = mock_auth
+    from pathology_api.handler import handle_request
 
 
 class TestHandleRequest:
@@ -57,6 +78,30 @@ class TestHandleRequest:
         assert created_meta.last_updated <= after_call
 
         assert created_meta.version_id is None
+
+        mock_session.post.assert_called_once_with(os.environ["PDM_BUNDLE_URL"])
+
+    def test_handle_request_raises_error_when_send_request_fails(self) -> None:
+        # Arrange
+        bundle = Bundle.create(
+            type="document",
+            entry=[
+                Bundle.Entry(
+                    fullUrl="patient",
+                    resource=Composition.create(
+                        subject=LogicalReference(
+                            PatientIdentifier.from_nhs_number("nhs_number")
+                        )
+                    ),
+                )
+            ],
+        )
+
+        expected_error_message = "Failed to send request"
+        mock_session.post.side_effect = RequestException(expected_error_message)
+
+        with pytest.raises(RequestException, match=expected_error_message):
+            handle_request(bundle)
 
     def test_handle_request_raises_error_when_no_composition_resource(self) -> None:
         bundle = Bundle.create(
