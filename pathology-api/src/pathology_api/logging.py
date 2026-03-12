@@ -1,17 +1,8 @@
-import logging
 from typing import Any, Protocol
 
 from aws_lambda_powertools import Logger
 
 from pathology_api.request_context import get_correlation_id
-
-
-class _CorrelationIdFilter(logging.Filter):
-    """Injects the current correlation ID into every log record."""
-
-    def filter(self, record: logging.LogRecord) -> bool:
-        record.correlation_id = get_correlation_id()
-        return True
 
 
 class LogProvider(Protocol):
@@ -31,5 +22,5 @@ class LogProvider(Protocol):
 def get_logger(service: str) -> LogProvider:
     """Get a configured logger instance."""
     logger = Logger(service=service, level="DEBUG", serialize_stacktrace=True)
-    logger.addFilter(_CorrelationIdFilter())
+    logger.set_correlation_id(get_correlation_id())
     return logger

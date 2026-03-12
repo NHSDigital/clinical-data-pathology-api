@@ -108,11 +108,6 @@ _CORRELATION_ID_HEADER = "nhsd-correlation-id"
 
 @app.post("/FHIR/R4/Bundle")
 def post_result() -> Response[str]:
-    correlation_id = app.current_event.headers.get(_CORRELATION_ID_HEADER)
-    if not correlation_id:
-        raise ValidationError(f"Missing required header: {_CORRELATION_ID_HEADER}")
-    set_correlation_id(correlation_id)
-
     _logger.debug("Post result endpoint called.")
 
     try:
@@ -138,4 +133,8 @@ def post_result() -> Response[str]:
 
 
 def handler(data: dict[str, Any], context: LambdaContext) -> dict[str, Any]:
-    return app.resolve(data, context)
+    correlation_id = app.current_event.headers.get(_CORRELATION_ID_HEADER)
+    if not correlation_id:
+        raise ValueError(f"Missing required header: {_CORRELATION_ID_HEADER}")
+    with set_correlation_id(correlation_id):
+        return app.resolve(data, context)
