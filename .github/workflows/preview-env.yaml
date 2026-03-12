@@ -154,6 +154,7 @@ jobs:
             wait_for_lambda_ready
             aws lambda update-function-configuration --function-name "$FN" \
               --handler "${{ env.LAMBDA_HANDLER }}" \
+              --timeout 30 \
               --environment "Variables={APIM_TOKEN_EXPIRY_THRESHOLD=$EXPIRY_THRESHOLD, \
                                         APIM_PRIVATE_KEY_NAME=$PRIVATE_KEY, \
                                         APIM_API_KEY_NAME=$API_KEY, \
@@ -175,6 +176,7 @@ jobs:
               --handler "${{ env.LAMBDA_HANDLER }}" \
               --zip-file "fileb://artifact.zip" \
               --role "${{ steps.role-select.outputs.lambda_role }}" \
+              --timeout 30 \
               --environment "Variables={APIM_TOKEN_EXPIRY_THRESHOLD=$EXPIRY_THRESHOLD, \
                                         APIM_PRIVATE_KEY_NAME=$PRIVATE_KEY, \
                                         APIM_API_KEY_NAME=$API_KEY, \
