@@ -33,7 +33,7 @@ cd "$(git rev-parse --show-toplevel)"
 
 # Determine test path based on test type
 if [[ "$TEST_TYPE" = "unit" ]]; then
-  TEST_PATH="test_*.py src/"
+  TEST_PATH=". src/"
 else
   TEST_PATH="tests/${TEST_TYPE}/"
 fi
