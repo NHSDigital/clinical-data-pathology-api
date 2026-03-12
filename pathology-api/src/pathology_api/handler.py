@@ -101,7 +101,7 @@ def handle_request(bundle: Bundle) -> Bundle:
 
     auth_response = _send_request(PDM_URL)
     _logger.debug(
-        "Result of auth request. status_code=%s data=%s",
+        "Result of authenticated request. status_code=%s data=%s",
         auth_response.status_code,
         auth_response.text,
     )

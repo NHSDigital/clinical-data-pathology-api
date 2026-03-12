@@ -83,7 +83,7 @@ class ApimAuthenticator:
             ),
         }
         _logger.debug(
-            "Created client assertion. jti: %s, exp: %s, aud: %s",
+            "Created client claims. jti: %s, exp: %s, aud: %s",
             claims["jti"],
             claims["exp"],
             claims["aud"],
