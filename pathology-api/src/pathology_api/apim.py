@@ -146,7 +146,7 @@ class ApimAuthenticator:
             return {
                 "value": response_data["access_token"],
                 "expiry": datetime.now(tz=timezone.utc)
-                + timedelta(seconds=response_data["expires_in"]),
+                + timedelta(seconds=int(response_data["expires_in"])),
             }
 
         _logger.debug(
