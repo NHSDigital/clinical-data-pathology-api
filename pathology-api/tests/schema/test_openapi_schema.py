@@ -33,5 +33,11 @@ def test_api_schema_compliance(case: Case, base_url: str) -> None:
     - Validates inputs properly
     - Returns appropriate status codes
     """
+    # In local testing there is no APIM proxy to inject nhsd-correlation-id,
+    # so we add it explicitly before calling the API.
+    if case.headers is None:
+        case.headers = {"nhsd-correlation-id": "local-test-correlation-id"}
+    else:
+        case.headers["nhsd-correlation-id"] = "local-test-correlation-id"
     # Call the API and validate the response against the schema
     case.call_and_validate(base_url=base_url, timeout=30)

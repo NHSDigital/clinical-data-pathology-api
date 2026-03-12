@@ -133,8 +133,20 @@ def post_result() -> Response[str]:
 
 
 def handler(data: dict[str, Any], context: LambdaContext) -> dict[str, Any]:
-    correlation_id = app.current_event.headers.get(_CORRELATION_ID_HEADER)
+    headers = data.get("headers", {}) or {}
+    correlation_id = headers.get(_CORRELATION_ID_HEADER)
     if not correlation_id:
-        raise ValueError(f"Missing required header: {_CORRELATION_ID_HEADER}")
-    with set_correlation_id(correlation_id):
+        raw_path = (data.get("rawPath") or "").lstrip("/")
+        if raw_path != "_status":
+            return {
+                "statusCode": 400,
+                "headers": {"Content-Type": "application/fhir+json"},
+                "body": OperationOutcome.create_validation_error(
+                    f"Missing required header: {_CORRELATION_ID_HEADER}"
+                ).model_dump_json(by_alias=True, exclude_none=True),
+            }
         return app.resolve(data, context)
+    with set_correlation_id(correlation_id):
+        response = app.resolve(data, context)
+        response.setdefault("headers", {})[_CORRELATION_ID_HEADER] = correlation_id
+        return response

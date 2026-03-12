@@ -31,10 +31,15 @@ class TestBundleEndpoint:
             data=bundle.model_dump_json(by_alias=True),
             path="FHIR/R4/Bundle",
             request_method="POST",
+            headers={"nhsd-correlation-id": "test-nhsd-correlation-id-555666777"},
         )
 
         assert response.status_code == 200
         assert response.headers["Content-Type"] == "application/fhir+json"
+        assert (
+            response.headers["nhsd-correlation-id"]
+            == "test-nhsd-correlation-id-555666777"
+        )
 
         response_data = response.json()
         response_bundle = Bundle.model_validate(response_data, by_alias=True)

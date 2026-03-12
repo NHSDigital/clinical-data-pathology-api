@@ -8,7 +8,6 @@ from lambda_handler import handler
 from pathology_api.exception import ValidationError
 from pathology_api.fhir.r4.elements import LogicalReference, PatientIdentifier
 from pathology_api.fhir.r4.resources import Bundle, Composition, OperationOutcome
-from pathology_api.request_context import get_correlation_id
 
 
 class TestHandler:
@@ -68,7 +67,10 @@ class TestHandler:
         response = handler(event, context)
 
         assert response["statusCode"] == 200
-        assert response["headers"] == {"Content-Type": "application/fhir+json"}
+        assert response["headers"] == {
+            "Content-Type": "application/fhir+json",
+            "nhsd-correlation-id": "test-correlation-id",
+        }
 
         response_body = response["body"]
         assert isinstance(response_body, str)
@@ -79,33 +81,6 @@ class TestHandler:
 
         # A UUID value so can only check its presence.
         assert response_bundle.id is not None
-
-    def test_correlation_id_is_set_from_request_header(self) -> None:
-        correlation_id = "test-correlation-id-abc-123"
-        bundle = Bundle.create(
-            type="document",
-            entry=[
-                Bundle.Entry(
-                    fullUrl="composition",
-                    resource=Composition.create(
-                        subject=LogicalReference(
-                            PatientIdentifier.from_nhs_number("nhs_number")
-                        )
-                    ),
-                )
-            ],
-        )
-        event = self._create_test_event(
-            body=bundle.model_dump_json(by_alias=True),
-            path_params="FHIR/R4/Bundle",
-            request_method="POST",
-            headers={"nhsd-correlation-id": correlation_id},
-        )
-        context = LambdaContext()
-
-        handler(event, context)
-
-        assert get_correlation_id() == correlation_id
 
     def test_missing_correlation_id_header_returns_400(self) -> None:
         bundle = Bundle.create(
@@ -152,7 +127,10 @@ class TestHandler:
         response = handler(event, context)
 
         assert response["statusCode"] == 400
-        assert response["headers"] == {"Content-Type": "application/fhir+json"}
+        assert response["headers"] == {
+            "Content-Type": "application/fhir+json",
+            "nhsd-correlation-id": "test-correlation-id",
+        }
 
         returned_issue = self._parse_returned_issue(response["body"])
 
@@ -175,7 +153,10 @@ class TestHandler:
         response = handler(event, context)
 
         assert response["statusCode"] == 400
-        assert response["headers"] == {"Content-Type": "application/fhir+json"}
+        assert response["headers"] == {
+            "Content-Type": "application/fhir+json",
+            "nhsd-correlation-id": "test-correlation-id",
+        }
 
         returned_issue = self._parse_returned_issue(response["body"])
 
@@ -198,7 +179,10 @@ class TestHandler:
         response = handler(event, context)
 
         assert response["statusCode"] == 400
-        assert response["headers"] == {"Content-Type": "application/fhir+json"}
+        assert response["headers"] == {
+            "Content-Type": "application/fhir+json",
+            "nhsd-correlation-id": "test-correlation-id",
+        }
 
         returned_issue = self._parse_returned_issue(response["body"])
         assert returned_issue["severity"] == "error"
@@ -250,7 +234,10 @@ class TestHandler:
             response = handler(event, context)
 
         assert response["statusCode"] == expected_status_code
-        assert response["headers"] == {"Content-Type": "application/fhir+json"}
+        assert response["headers"] == {
+            "Content-Type": "application/fhir+json",
+            "nhsd-correlation-id": "test-correlation-id",
+        }
 
         returned_issue = self._parse_returned_issue(response["body"])
         assert returned_issue == expected_issue
@@ -292,7 +279,10 @@ class TestHandler:
             response = handler(event, context)
 
             assert response["statusCode"] == 400
-            assert response["headers"] == {"Content-Type": "application/fhir+json"}
+            assert response["headers"] == {
+                "Content-Type": "application/fhir+json",
+                "nhsd-correlation-id": "test-correlation-id",
+            }
 
             returned_issue = self._parse_returned_issue(response["body"])
             assert returned_issue["severity"] == "error"
