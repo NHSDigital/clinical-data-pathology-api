@@ -36,12 +36,22 @@ def mock_auth(func: Callable[..., Any]) -> Callable[..., Any]:
 with (
     patch("aws_lambda_powertools.utilities.parameters.get_secret") as get_secret_mock,
     patch("pathology_api.apim.ApimAuthenticator") as apim_authenticator_mock,
+    patch("pathology_api.http.SessionManager") as session_manager_mock,
 ):
     apim_authenticator_mock.return_value.auth = mock_auth
+    get_secret_mock.side_effect = lambda secret_name: {
+        os.environ["APIM_PRIVATE_KEY_NAME"]: "private_key",
+        os.environ["APIM_API_KEY_NAME"]: "api_key",
+        "mtls_cert_name": "mtls_cert",
+        "mtls_key_name": "mtls_key",
+    }[secret_name]
     from pathology_api.handler import handle_request
 
 
 class TestHandleRequest:
+    def setup_method(self) -> None:
+        mock_session.reset()
+
     def test_handle_request(self) -> None:
         # Arrange
         bundle = Bundle.create(
@@ -80,6 +90,19 @@ class TestHandleRequest:
         assert created_meta.version_id is None
 
         mock_session.post.assert_called_once_with(os.environ["PDM_BUNDLE_URL"])
+
+        session_manager_mock.assert_called_once_with(
+            client_timeout=datetime.timedelta(seconds=1), client_certificate=None
+        )
+
+        apim_authenticator_mock.assert_called_once_with(
+            private_key="private_key",
+            key_id=os.environ["APIM_KEY_ID"],
+            api_key="api_key",
+            token_endpoint=os.environ["APIM_TOKEN_URL"],
+            token_validity_threshold=datetime.timedelta(seconds=1),
+            session_manager=session_manager_mock.return_value,
+        )
 
     def test_handle_request_raises_error_when_send_request_fails(self) -> None:
         # Arrange

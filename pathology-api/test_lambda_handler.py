@@ -54,11 +54,6 @@ class TestHandler:
 
     @patch("lambda_handler.handle_request")
     def test_create_test_result_success(self, handle_request_mock: MagicMock) -> None:
-        get_secret_mock.side_effect = lambda secret_name: {
-            os.environ["APIM_PRIVATE_KEY_NAME"]: "private_key",
-            os.environ["APIM_API_KEY_NAME"]: "api_key",
-        }[secret_name]
-
         bundle = Bundle.create(
             type="document",
             entry=[
