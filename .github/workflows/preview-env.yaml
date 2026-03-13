@@ -154,14 +154,18 @@ jobs:
             wait_for_lambda_ready
             aws lambda update-function-configuration --function-name "$FN" \
               --handler "${{ env.LAMBDA_HANDLER }}" \
+              --memory-size 512 \
+              --timeout 30 \
               --environment "Variables={APIM_TOKEN_EXPIRY_THRESHOLD=$EXPIRY_THRESHOLD, \
                                         APIM_PRIVATE_KEY_NAME=$PRIVATE_KEY, \
                                         APIM_API_KEY_NAME=$API_KEY, \
                                         APIM_MTLS_CERT_NAME=$MTLS_CERT, \
                                         APIM_MTLS_KEY_NAME=$MTLS_KEY, \
-                                        APIM_TOKEN_URL=$MOCK_URL/apim, \
-                                        PDM_BUNDLE_URL=$MOCK_URL/pdm, \
+                                        APIM_KEY_ID=DEV-1, \
+                                        APIM_TOKEN_URL=$MOCK_URL/apim/oauth2/token, \
+                                        PDM_BUNDLE_URL=$MOCK_URL/apim/check_auth, \
                                         MNS_EVENT_URL=$MOCK_URL/mns, \
+                                        CLIENT_TIMEOUT=1m, \
                                         JWKS_SECRET_NAME=$JWKS_SECRET}" || true
             wait_for_lambda_ready
             aws lambda update-function-code --function-name "$FN" \
@@ -173,14 +177,18 @@ jobs:
               --handler "${{ env.LAMBDA_HANDLER }}" \
               --zip-file "fileb://artifact.zip" \
               --role "${{ steps.role-select.outputs.lambda_role }}" \
+              --memory-size 512 \
+              --timeout 30 \
               --environment "Variables={APIM_TOKEN_EXPIRY_THRESHOLD=$EXPIRY_THRESHOLD, \
                                         APIM_PRIVATE_KEY_NAME=$PRIVATE_KEY, \
                                         APIM_API_KEY_NAME=$API_KEY, \
+                                        APIM_KEY_ID=DEV-1, \
                                         APIM_MTLS_CERT_NAME=$MTLS_CERT, \
                                         APIM_MTLS_KEY_NAME=$MTLS_KEY, \
-                                        APIM_TOKEN_URL=$MOCK_URL/apim, \
-                                        PDM_BUNDLE_URL=$MOCK_URL/pdm, \
+                                        APIM_TOKEN_URL=$MOCK_URL/apim/oauth2/token, \
+                                        PDM_BUNDLE_URL=$MOCK_URL/apim/check_auth, \
                                         MNS_EVENT_URL=$MOCK_URL/mns, \
+                                        CLIENT_TIMEOUT=1m, \
                                         JWKS_SECRET_NAME=$JWKS_SECRET}" \
               --publish
             wait_for_lambda_ready
