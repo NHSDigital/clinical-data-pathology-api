@@ -71,14 +71,14 @@ class SessionManager:
                     # File added to Exit stack to will be automatically cleaned up with
                     # the stack.
                     cert_file = tempfile.NamedTemporaryFile(  # noqa: SIM115
-                        dir="/tmp", delete=True
+                        delete=True
                     )
                     stack.enter_context(cert_file)
 
                     # File added to Exit stack to will be automatically cleaned up with
                     # the stack.
                     key_file = tempfile.NamedTemporaryFile(  # noqa: SIM115
-                        dir="/tmp", delete=True
+                        delete=True
                     )
                     stack.enter_context(key_file)
 
