@@ -38,7 +38,7 @@ class ApimAuthenticator:
         self._token_endpoint = token_endpoint
         self._session_manager = session_manager
 
-        self.__access_token: ApimAuthenticator.__AccessToken | None = None
+        self._access_token: ApimAuthenticator.__AccessToken | None = None
 
     def auth[**P, S](self, func: RequestMethod[P, S]) -> Callable[P, S]:
         """
@@ -60,14 +60,14 @@ class ApimAuthenticator:
             # If there isn't an access token yet, or the token will expire within the
             # token validity threshold, reauthenticate.
             if (
-                self.__access_token is None
-                or self.__access_token["expiry"] - datetime.now(tz=timezone.utc)
+                self._access_token is None
+                or self._access_token["expiry"] - datetime.now(tz=timezone.utc)
                 < self._token_validity_threshold
             ):
                 _logger.debug("Authenticating with APIM...")
-                self.__access_token = self._authenticate()
+                self._access_token = self._authenticate()
 
-            return with_session(self.__access_token)
+            return with_session(self._access_token)
 
         return wrapper
 
@@ -111,19 +111,15 @@ class ApimAuthenticator:
 
             _logger.debug("Sending token request with created session.")
 
-            try:
-                response = session.post(
-                    self._token_endpoint,
-                    data={
-                        "grant_type": "client_credentials",
-                        "client_assertion_type": "urn:ietf:params:oauth"
-                        ":client-assertion-type:jwt-bearer",
-                        "client_assertion": client_assertion,
-                    },
-                )
-            except BaseException:
-                _logger.exception("Failed to send authentication request to APIM")
-                raise
+            response = session.post(
+                self._token_endpoint,
+                data={
+                    "grant_type": "client_credentials",
+                    "client_assertion_type": "urn:ietf:params:oauth"
+                    ":client-assertion-type:jwt-bearer",
+                    "client_assertion": client_assertion,
+                },
+            )
 
             _logger.debug(
                 "Response received from APIM token endpoint. Status code: %s",
