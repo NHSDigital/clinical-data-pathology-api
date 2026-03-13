@@ -13,6 +13,7 @@ from pathology_api.exception import ValidationError
 from pathology_api.fhir.r4.resources import Bundle, OperationOutcome
 from pathology_api.handler import handle_request
 from pathology_api.logging import get_logger
+from pathology_api.request_context import set_correlation_id
 
 _logger = get_logger(__name__)
 
@@ -102,6 +103,9 @@ def status() -> Response[str]:
     return Response(status_code=200, body="OK", headers={"Content-Type": "text/plain"})
 
 
+_CORRELATION_ID_HEADER = "nhsd-correlation-id"
+
+
 @app.post("/FHIR/R4/Bundle")
 def post_result() -> Response[str]:
     _logger.debug("Post result endpoint called.")
@@ -129,4 +133,20 @@ def post_result() -> Response[str]:
 
 
 def handler(data: dict[str, Any], context: LambdaContext) -> dict[str, Any]:
-    return app.resolve(data, context)
+    headers = data.get("headers", {}) or {}
+    correlation_id = headers.get(_CORRELATION_ID_HEADER)
+    if not correlation_id:
+        raw_path = (data.get("rawPath") or "").lstrip("/")
+        if raw_path != "_status":
+            return {
+                "statusCode": 400,
+                "headers": {"Content-Type": "application/fhir+json"},
+                "body": OperationOutcome.create_validation_error(
+                    f"Missing required header: {_CORRELATION_ID_HEADER}"
+                ).model_dump_json(by_alias=True, exclude_none=True),
+            }
+        return app.resolve(data, context)
+    with set_correlation_id(correlation_id):
+        response = app.resolve(data, context)
+        response.setdefault("headers", {})[_CORRELATION_ID_HEADER] = correlation_id
+        return response

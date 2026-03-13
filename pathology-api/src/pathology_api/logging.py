@@ -2,6 +2,8 @@ from typing import Any, Protocol
 
 from aws_lambda_powertools import Logger
 
+from pathology_api.request_context import get_correlation_id
+
 
 class LogProvider(Protocol):
     """Protocol defining required contract for a logger."""
@@ -19,4 +21,6 @@ class LogProvider(Protocol):
 
 def get_logger(service: str) -> LogProvider:
     """Get a configured logger instance."""
-    return Logger(service=service, level="DEBUG", serialize_stacktrace=True)
+    logger = Logger(service=service, level="DEBUG", serialize_stacktrace=True)
+    logger.set_correlation_id(get_correlation_id())
+    return logger

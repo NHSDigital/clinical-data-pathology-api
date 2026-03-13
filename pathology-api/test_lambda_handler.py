@@ -16,9 +16,11 @@ class TestHandler:
         body: str | None = None,
         path_params: str | None = None,
         request_method: str | None = None,
+        headers: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         return {
             "body": body,
+            "headers": headers or {},
             "requestContext": {
                 "http": {
                     "path": f"/{path_params}",
@@ -58,13 +60,17 @@ class TestHandler:
             body=bundle.model_dump_json(by_alias=True),
             path_params="FHIR/R4/Bundle",
             request_method="POST",
+            headers={"nhsd-correlation-id": "test-correlation-id"},
         )
         context = LambdaContext()
 
         response = handler(event, context)
 
         assert response["statusCode"] == 200
-        assert response["headers"] == {"Content-Type": "application/fhir+json"}
+        assert response["headers"] == {
+            "Content-Type": "application/fhir+json",
+            "nhsd-correlation-id": "test-correlation-id",
+        }
 
         response_body = response["body"]
         assert isinstance(response_body, str)
@@ -76,9 +82,24 @@ class TestHandler:
         # A UUID value so can only check its presence.
         assert response_bundle.id is not None
 
-    def test_create_test_result_no_payload(self) -> None:
+    def test_missing_correlation_id_header_returns_400(self) -> None:
+        bundle = Bundle.create(
+            type="document",
+            entry=[
+                Bundle.Entry(
+                    fullUrl="composition",
+                    resource=Composition.create(
+                        subject=LogicalReference(
+                            PatientIdentifier.from_nhs_number("nhs_number")
+                        )
+                    ),
+                )
+            ],
+        )
         event = self._create_test_event(
-            path_params="FHIR/R4/Bundle", request_method="POST"
+            body=bundle.model_dump_json(by_alias=True),
+            path_params="FHIR/R4/Bundle",
+            request_method="POST",
         )
         context = LambdaContext()
 
@@ -86,6 +107,30 @@ class TestHandler:
 
         assert response["statusCode"] == 400
         assert response["headers"] == {"Content-Type": "application/fhir+json"}
+
+        returned_issue = self._parse_returned_issue(response["body"])
+        assert returned_issue["severity"] == "error"
+        assert returned_issue["code"] == "invalid"
+        assert (
+            returned_issue["diagnostics"]
+            == "Missing required header: nhsd-correlation-id"
+        )
+
+    def test_create_test_result_no_payload(self) -> None:
+        event = self._create_test_event(
+            path_params="FHIR/R4/Bundle",
+            request_method="POST",
+            headers={"nhsd-correlation-id": "test-correlation-id"},
+        )
+        context = LambdaContext()
+
+        response = handler(event, context)
+
+        assert response["statusCode"] == 400
+        assert response["headers"] == {
+            "Content-Type": "application/fhir+json",
+            "nhsd-correlation-id": "test-correlation-id",
+        }
 
         returned_issue = self._parse_returned_issue(response["body"])
 
@@ -98,14 +143,20 @@ class TestHandler:
 
     def test_create_test_result_empty_payload(self) -> None:
         event = self._create_test_event(
-            body="{}", path_params="FHIR/R4/Bundle", request_method="POST"
+            body="{}",
+            path_params="FHIR/R4/Bundle",
+            request_method="POST",
+            headers={"nhsd-correlation-id": "test-correlation-id"},
         )
         context = LambdaContext()
 
         response = handler(event, context)
 
         assert response["statusCode"] == 400
-        assert response["headers"] == {"Content-Type": "application/fhir+json"}
+        assert response["headers"] == {
+            "Content-Type": "application/fhir+json",
+            "nhsd-correlation-id": "test-correlation-id",
+        }
 
         returned_issue = self._parse_returned_issue(response["body"])
 
@@ -118,14 +169,20 @@ class TestHandler:
 
     def test_create_test_result_invalid_json(self) -> None:
         event = self._create_test_event(
-            body="invalid json", path_params="FHIR/R4/Bundle", request_method="POST"
+            body="invalid json",
+            path_params="FHIR/R4/Bundle",
+            request_method="POST",
+            headers={"nhsd-correlation-id": "test-correlation-id"},
         )
         context = LambdaContext()
 
         response = handler(event, context)
 
         assert response["statusCode"] == 400
-        assert response["headers"] == {"Content-Type": "application/fhir+json"}
+        assert response["headers"] == {
+            "Content-Type": "application/fhir+json",
+            "nhsd-correlation-id": "test-correlation-id",
+        }
 
         returned_issue = self._parse_returned_issue(response["body"])
         assert returned_issue["severity"] == "error"
@@ -169,6 +226,7 @@ class TestHandler:
             body=bundle.model_dump_json(by_alias=True),
             path_params="FHIR/R4/Bundle",
             request_method="POST",
+            headers={"nhsd-correlation-id": "test-correlation-id"},
         )
         context = LambdaContext()
 
@@ -176,7 +234,10 @@ class TestHandler:
             response = handler(event, context)
 
         assert response["statusCode"] == expected_status_code
-        assert response["headers"] == {"Content-Type": "application/fhir+json"}
+        assert response["headers"] == {
+            "Content-Type": "application/fhir+json",
+            "nhsd-correlation-id": "test-correlation-id",
+        }
 
         returned_issue = self._parse_returned_issue(response["body"])
         assert returned_issue == expected_issue
@@ -207,6 +268,7 @@ class TestHandler:
             body=bundle.model_dump_json(by_alias=True),
             path_params="FHIR/R4/Bundle",
             request_method="POST",
+            headers={"nhsd-correlation-id": "test-correlation-id"},
         )
         context = LambdaContext()
 
@@ -217,7 +279,10 @@ class TestHandler:
             response = handler(event, context)
 
             assert response["statusCode"] == 400
-            assert response["headers"] == {"Content-Type": "application/fhir+json"}
+            assert response["headers"] == {
+                "Content-Type": "application/fhir+json",
+                "nhsd-correlation-id": "test-correlation-id",
+            }
 
             returned_issue = self._parse_returned_issue(response["body"])
             assert returned_issue["severity"] == "error"

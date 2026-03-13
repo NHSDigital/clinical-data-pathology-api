@@ -42,6 +42,7 @@ def forward_request(path_params):
         "/functions/function/invocations",
         json={
             "body": request.get_data(as_text=True).replace("\n", "").replace(" ", ""),
+            "headers": {k.lower(): v for k, v in request.headers.items()},
             "requestContext": {
                 "http": {
                     "path": f"/{path_params}",
